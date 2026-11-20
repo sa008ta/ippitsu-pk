@@ -581,7 +581,7 @@ function endMatch() {
   if (G.mode === 'cpu') {
     rs.style.display = '';
     const txt = w === 0 ? `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で勝った！` : `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で負けた…`;
-    rs.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(txt + '\nhttps://utimadev.itch.io/ippitsu-pk #一筆PK #ブラウザゲーム #インディーゲーム');
+    rs.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(txt + '\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム');
   } else rs.style.display = 'none';
   showScreen('result');
 }
@@ -636,7 +636,7 @@ function renderMyShots() {
   const share = $('myShareBtn');
   if (share) {
     share.style.display = r ? '' : 'none';
-    if (r) share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}\nこのシュート、止められる？\nhttps://utimadev.itch.io/ippitsu-pk #一筆PK #ブラウザゲーム #インディーゲーム`);
+    if (r) share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}\nこのシュート、止められる？\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
   }
 }
 async function refreshShotRecords() {
