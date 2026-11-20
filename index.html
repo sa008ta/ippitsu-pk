@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>一筆PK</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; }
+  body { font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif; background:#79b657; color:#23301c; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #gl { position:fixed; inset:0; display:block; }
+  #drawC { position:fixed; inset:0; display:block; touch-action:none; }
+  .screen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:14px; z-index:30; overflow-y:auto; }
+  .hidden { display:none !important; }
+  .card { background:#fffdf4; border-radius:24px; padding:20px 24px; max-width:430px; width:100%; max-height:96dvh; overflow-y:auto; box-shadow:0 14px 44px rgba(20,50,10,.35); text-align:center; }
+  .hero { margin:-20px -24px 12px; padding:20px 18px 14px; border-radius:24px 24px 0 0; background:linear-gradient(160deg,#0d3b1e,#14632f 60%,#1d7a38); color:#fff; position:relative; overflow:hidden; }
+  .hero::before { content:"⚽"; position:absolute; right:-8px; top:-16px; font-size:130px; opacity:.16; transform:rotate(18deg); }
+  .hero h1 { font-size:27px; letter-spacing:.04em; text-shadow:0 3px 0 rgba(0,0,0,.25); }
+  .hero h1 .gold { color:#ffd23e; }
+  .hero .sub { margin-top:6px; font-size:13px; color:#cfe8c9; font-weight:700; }
+  .howto { text-align:left; font-size:13px; line-height:1.6; color:#44543a; margin:4px 2px 14px; font-weight:600; }
+  .nameRow { display:flex; gap:8px; margin-bottom:8px; }
+  .nameRow input { flex:1; min-width:0; font-size:16px; padding:11px 12px; border:2px solid #bcd3a8; border-radius:12px; font-family:inherit; font-weight:700; color:#23301c; background:#fff; }
+  .btn { display:block; width:100%; border:none; cursor:pointer; font-family:inherit; font-weight:900; border-radius:16px; padding:12px 10px; font-size:17px; margin-top:8px; }
+  .btn.main { background:linear-gradient(180deg,#ffd23e,#f5a623); color:#4a2f00; box-shadow:0 5px 0 #c47f0a; }
+  .btn.sub { background:#eef5e4; color:#2c5220; box-shadow:0 4px 0 #c4d8ae; font-size:15px; }
+  .btn:active { transform:translateY(3px); box-shadow:none; }
+  .diffRow { display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 6px; }
+  .diffRow button { flex:1 1 30%; border:2px solid #bcd3a8; background:#fff; border-radius:12px; padding:8px 1px; font-family:inherit; font-weight:900; font-size:12px; color:#5a6e4c; cursor:pointer; }
+  .diffRow button.on { background:#14632f; border-color:#14632f; color:#fff; }
+  .lbl { text-align:left; font-size:12.5px; font-weight:900; color:#7a8c68; margin:7px 2px 4px; }
+  #hud { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:10px; right:10px; z-index:20; pointer-events:none; }
+  #scorePill { display:inline-block; background:rgba(255,255,255,.94); border-radius:999px; padding:9px 16px; font-weight:900; font-size:15px; box-shadow:0 4px 14px rgba(20,50,10,.25); }
+  #turnPill { display:inline-block; margin-top:7px; background:rgba(13,59,30,.85); color:#fff; border-radius:999px; padding:6px 14px; font-weight:900; font-size:13px; }
+  #quitBtn { position:fixed; top:calc(10px + env(safe-area-inset-top)); right:10px; z-index:21; border:none; background:rgba(255,255,255,.92); color:#5a6e4c; font-family:inherit; font-weight:900; font-size:13px; border-radius:999px; padding:9px 15px; cursor:pointer; box-shadow:0 4px 14px rgba(20,50,10,.2); }
+  #watchBack { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:10px; z-index:21; border:none; background:rgba(255,255,255,.92); color:#5a6e4c; font-family:inherit; font-weight:900; font-size:13px; border-radius:999px; padding:9px 15px; cursor:pointer; box-shadow:0 4px 14px rgba(20,50,10,.2); }
+  #shotName { position:fixed; left:0; right:0; top:19%; z-index:22; text-align:center; pointer-events:none; opacity:0; transform:scale(.8); transition:opacity .18s, transform .18s; }
+  #shotName.pop { opacity:1; transform:scale(1); }
+  #shotName .nm { display:inline-block; font-size:31px; font-weight:900; color:#fff; text-shadow:0 3px 0 #0d3b1e, 0 6px 18px rgba(0,0,0,.4); letter-spacing:.03em; }
+  #shotName .pre { display:block; font-size:13px; font-weight:900; color:#ffe97a; text-shadow:0 2px 6px rgba(0,0,0,.5); margin-bottom:2px; }
+  #kickResult { position:fixed; left:0; right:0; top:38%; z-index:22; text-align:center; pointer-events:none; opacity:0; transform:scale(.7); transition:opacity .15s, transform .15s; }
+  #kickResult.pop { opacity:1; transform:scale(1); }
+  #kickResult .rs { font-size:52px; font-weight:900; color:#fff; text-shadow:0 4px 0 rgba(13,59,30,.9), 0 10px 30px rgba(0,0,0,.45); letter-spacing:.05em; }
+  #hint { position:fixed; left:0; right:0; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:20; text-align:center; pointer-events:none; font-weight:900; font-size:15px; color:#fff; text-shadow:0 2px 8px rgba(13,59,30,.8); }
+  #loadErr { position:fixed; inset:auto 12px calc(12px + env(safe-area-inset-bottom)) 12px; z-index:40; background:#fff3f3; color:#a33; border:2px solid #e5a3a3; border-radius:14px; padding:12px 14px; font-size:13.5px; font-weight:700; }
+  .bigScore { font-size:44px; font-weight:900; margin:8px 0 2px; }
+  .logList { text-align:left; font-size:13.5px; font-weight:700; color:#44543a; line-height:1.9; margin:10px 2px; }
+  .logList .g { color:#c47f0a; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="drawC"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="scorePill">0 - 0</div><br>
+  <div id="turnPill"></div>
+</div>
+<button id="quitBtn" class="hidden">やめる</button>
+<button id="watchBack" class="hidden">← もどる</button>
+<div id="shotName"><span class="pre">そのシュート、名づけて</span><span class="nm"></span></div>
+<div id="kickResult"><span class="rs"></span></div>
+<div id="hint" class="hidden"></div>
+
+<div id="screenTitle" class="screen">
+  <div class="card">
+    <div class="hero"><h1>一筆<span class="gold">PK</span></h1><div class="sub">線を描くと、その通りにボールが飛ぶ</div></div>
+    <div class="lbl">👤 ユーザーネーム</div>
+    <div class="nameRow"><input id="name1" maxlength="10" placeholder="ユーザーネーム"></div>
+    <div class="lbl">🤖 CPU戦</div>
+    <button class="btn main" id="cpuBtn">CPUと対戦</button>
+    <div class="lbl">👥 2P戦（同じ端末）</div>
+    <button class="btn sub" id="vsBtn">2P対戦</button>
+    <div class="lbl">⚽ マイシュート</div>
+    <button class="btn sub" id="myBtn">マイシュートを見る</button>
+    <div class="lbl">🔑 対戦コード</div>
+    <div class="nameRow"><input id="codeIn" maxlength="6" placeholder="コードを入力" style="text-transform:uppercase"><button class="btn sub" id="codeBtn" style="width:auto;padding:10px 18px">対戦する</button></div>
+    <div id="codeMsg" style="font-size:12.5px;font-weight:700;color:#b3543f;min-height:17px;margin:-4px 0 6px"></div>
+    <div class="howto">
+      ・ボールの軌道を指で描いてシュート<br>
+      ・キーパーはドラッグで左右に移動、スワイプで飛ぶ<br>
+      ・3本ずつ蹴って交代、同点ならサドンデス
+    </div>
+  </div>
+</div>
+
+<div id="screenDiff" class="screen hidden">
+  <div class="card">
+    <h2 style="margin:2px 0 10px">相手を選ぶ</h2>
+    <div id="diffPick" style="display:flex;flex-direction:column;gap:2px">
+      <button class="btn sub" data-d="0">小学生</button>
+      <button class="btn sub" data-d="1">高校生</button>
+      <button class="btn sub" data-d="2">選手権優勝GK</button>
+      <button class="btn sub" data-d="3">象</button>
+      <button class="btn sub" data-d="4">大仏</button>
+      <button class="btn sub" data-d="5">ベリーベリーつよしくん</button>
+    </div>
+    <button class="btn sub" id="diffBack">もどる</button>
+  </div>
+</div>
+
+<div id="screenPass" class="screen hidden">
+  <div class="card">
+    <div style="font-size:44px">📱</div>
+    <h2 id="passTitle" style="margin:8px 0 4px"></h2>
+    <p id="passText" style="font-weight:700;color:#5a6e4c;font-size:14px;line-height:1.7"></p>
+    <button class="btn main" id="passBtn">準備OK</button>
+  </div>
+</div>
+
+<div id="screenResult" class="screen hidden">
+  <div class="card">
+    <div style="font-size:40px">🏆</div>
+    <h2 id="winTitle"></h2>
+    <div class="bigScore" id="finalScore"></div>
+    <div class="logList" id="matchLog"></div>
+    <button class="btn main" id="againBtn">もう一試合</button>
+    <a class="btn sub" id="resShareBtn" href="#" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:none">𝕏 で共有</a>
+    <button class="btn sub" id="backBtn">タイトルへ</button>
+  </div>
+</div>
+
+<div id="screenMyshot" class="screen hidden">
+  <div class="card">
+    <h2 style="margin:2px 0 4px">⚽ マイシュート</h2>
+    <div id="myShotHead" style="cursor:pointer">
+      <div id="myShotName" style="font-size:19px;font-weight:900;color:#23301c;min-height:26px">—</div>
+      <div id="myCode" style="font-size:32px;font-weight:900;letter-spacing:3px;color:#23301c">—</div>
+    </div>
+    <button class="btn main" id="freeBtn">⚽ シュートを蹴る</button>
+    <a class="btn sub" id="myShareBtn" href="#" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:none">𝕏 で共有</a>
+    <div id="myStats" style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0"></div>
+    <button class="btn main" id="myBackBtn">タイトルへ</button>
+  </div>
+</div>
+
+<div id="loadErr" class="hidden">3Dの読み込みに失敗しました。通信環境を確認してもう一度開いてください。</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const GOAL_HW = 4.3, GOAL_H = 2.9, GOAL_Z = -18, WALL_Z = -9.15;
+const WALL_X0 = -3.6, WALL_X1 = 0.2, WALL_H = 1.8;
+const KEEPER_HOME = { x: 0, y: 0.95 };
+const SPOT_Z = -7;
+const KEEPER_LV = [
+  { react: 650, sig: 2.3, reach: 0.7, travel: 0.5 , read: 0.05 },
+  { react: 420, sig: 1.35, reach: 0.88, travel: 0.4 , read: 0.12 },
+  { react: 200, sig: 0.62, reach: 0.98, travel: 0.34 , read: 0.25 },
+  { react: 380, sig: 0.95, reach: 1.55, travel: 0.55 , read: 0.15 },
+  { react: 300, sig: 0.8, reach: 1.75, travel: 0.6 , read: 0.18 },
+  { react: 60, sig: 0.28, reach: 1.1, travel: 0.24 , read: 0.42 },
+];
+const KEEPER_KIND = ['kid', 'high', 'champ', 'ele', 'buddha', 'tsuyoshi'];
+const KICK_LV = [
+  { tx: [0.7, 1.4], highP: 0.25, dur: [950, 1350], curve: 0.8, wig: 0 },
+  { tx: [1.8, 1.5], highP: 0.4, dur: [650, 1000], curve: 1.2, wig: 0.08 },
+  { tx: [2.9, 1.1], highP: 0.45, dur: [420, 680], curve: 2.2, wig: 0.25 },
+  { tx: [2.5, 1.5], highP: 0.55, dur: [340, 560], curve: 1.4, wig: 0.35 },
+  { tx: [3.2, 0.85], highP: 0.5, dur: [460, 760], curve: 1.8, wig: 0.2 },
+  { tx: [3.45, 0.6], highP: 0.5, dur: [260, 430], curve: 2.8, wig: 0.55 }
+];
+function s2g(nx, ny) { if (window.R3D && R3D.mapPoint) return R3D.mapPoint(nx, ny); return { x: (nx - 0.5) * 12.6, y: (1 - ny) * 4.7 - 0.1 }; }
+let INV = null, invKey = '';
+function fitInv() {
+  const key = innerWidth + 'x' + innerHeight;
+  if ((INV && invKey === key) || !window.R3D || !R3D.mapPoint) return;
+  const a = R3D.mapPoint(0.25, 0.35), b = R3D.mapPoint(0.75, 0.35), c = R3D.mapPoint(0.25, 0.75);
+  INV = { ax: (b.x - a.x) / 0.5, bx: a.x, ay: (c.y - a.y) / 0.4, by: a.y };
+  invKey = key;
+}
+function g2n(x, y) { if (window.R3D && R3D.projectPoint) return R3D.projectPoint(x, y); return { nx: gx2nx(x), ny: gy2ny(y) }; }
+function gx2nx(gx) { fitInv(); return INV ? 0.25 + (gx - INV.bx) / INV.ax : gx / 12.6 + 0.5; }
+function gy2ny(gy) { fitInv(); return INV ? 0.35 + (gy - INV.by) / INV.ay : 1 - (gy + 0.1) / 4.7; }
+function ballAnchor() { if (window.R3D && R3D.spotScreen) return R3D.spotScreen(); return { nx: BALL_NX, ny: BALL_NY }; }
+const BALL_NX = 0.5, BALL_NY = 0.577;
+
+let AC = null;
+function tone(f, d, type, g, when) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t = AC.currentTime + (when || 0);
+    const o = AC.createOscillator(), gn = AC.createGain();
+    o.type = type || 'sine'; o.frequency.value = f;
+    gn.gain.setValueAtTime(g || 0.12, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(gn); gn.connect(AC.destination); o.start(t); o.stop(t + d);
+  } catch (e) {}
+}
+const sndKick = () => { tone(120, 0.12, 'square', 0.15); };
+const sndGoal = () => { tone(660, 0.12, 'triangle', 0.14); tone(880, 0.2, 'triangle', 0.14, 0.1); };
+const sndSave = () => { tone(300, 0.1, 'square', 0.12); tone(200, 0.14, 'square', 0.1, 0.06); };
+const sndThud = () => { tone(90, 0.16, 'square', 0.16); };
+
+const G = {
+  phase: 'title', mode: 'cpu', diff: 1,
+  players: [{ name: 'P1', cpu: false }, { name: 'CPU', cpu: true }],
+  scores: [0, 0], log: [],
+  half: 0, kickInHalf: 0, sd: false, sdKicks: [0, 0], sdGoals: [0, 0],
+  cur: null, draw: null, lastKicker: -1,
+};
+const kickerIdx = () => G.sd ? ( (G.sdKicks[0] + G.sdKicks[1]) % 2 === 0 ? 0 : 1 ) : (G.half === 0 ? 0 : 1);
+const keeperIdx = () => 1 - kickerIdx();
+
+/* ---------- shot naming ---------- */
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0); }
+function analyzeShot(pts, T) {
+  // pts: resampled [{x,y}] in goal-plane coords, start->goal
+  const end = pts[pts.length - 1], start = pts[0];
+  const dx = end.x - start.x, dy = end.y - start.y;
+  const chordLen = Math.hypot(dx, dy) || 1;
+  let maxDev = 0, devSign = 0, signChanges = 0, lastSign = 0;
+  for (const p of pts) {
+    const dev = ((p.x - start.x) * dy - (p.y - start.y) * dx) / chordLen;
+    if (Math.abs(dev) > Math.abs(maxDev)) { maxDev = dev; }
+    const s = Math.sign(dev);
+    if (s !== 0 && lastSign !== 0 && s !== lastSign) signChanges++;
+    if (s !== 0) lastSign = s;
+  }
+  let peakLate = 0, totalTurn = 0, signedTurn = 0;
+  for (let i = Math.floor(pts.length * 0.55); i < pts.length; i++) peakLate = Math.max(peakLate, pts[i].y);
+  for (let i = 2; i < pts.length; i++) {
+    const a1 = Math.atan2(pts[i - 1].y - pts[i - 2].y, pts[i - 1].x - pts[i - 2].x);
+    const a2 = Math.atan2(pts[i].y - pts[i - 1].y, pts[i].x - pts[i - 1].x);
+    let d = a2 - a1; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+    totalTurn += Math.abs(d);
+    signedTurn += d;
+  }
+  const dip = peakLate - end.y;
+  const corners = [[-GOAL_HW, 0.15], [GOAL_HW, 0.15], [-GOAL_HW, GOAL_H], [GOAL_HW, GOAL_H]];
+  const cornerDist = Math.min(...corners.map(c => Math.hypot(end.x - c[0], end.y - c[1])));
+  return { end, maxDev, signChanges, dip, cornerDist, totalTurn, signedTurn, T,
+    fast: T < 0.62, slow: T > 0.98,
+    wiggle: G._wiggle || 0 };
+}
+function nameShot(a) {
+  const key = [a.end.x.toFixed(1), a.end.y.toFixed(1), a.maxDev.toFixed(1), a.signChanges, a.dip.toFixed(1), a.T.toFixed(2), Math.round(a.signedTurn * 2), a.wiggle.toFixed(2)].join('|');
+  const h = hashStr(key);
+  const pick = arr => arr[h % arr.length];
+  let type;
+  if (Math.abs(a.signedTurn) > Math.PI * 3.2) {
+    const turns = Math.max(2, Math.round(Math.abs(a.signedTurn) / (Math.PI * 2)));
+    type = pick([turns + '回転シュート', turns + '回転トルネード', 'ぐるぐる' + turns + '回転', turns + '回転うずまき', turns + '回転スペシャル', turns + '回転ぐるぐるシュート']);
+  }
+  else if (a.wiggle > 0.16) type = pick(['無回転ブレ球', 'ブレブレシュート', 'ゆらゆらブレ球', 'フラフラシュート', 'ゆらめきシュート', 'ブレ玉シュート']);
+  else if (a.signChanges >= 1 && Math.abs(a.maxDev) > 0.5) type = pick(['S字スネーク', 'へびシュート', 'くねくねシュート', 'うねうねシュート', 'S字カーブ', '波うちシュート']);
+  else if (a.dip > 0.85) type = pick(['ドライブシュート', '落ち葉シュート', '急降下シュート', 'ドロップシュート', 'ストンと落ちるシュート', '落下シュート']);
+  else if (a.maxDev > 0.55) type = pick(['巻きカーブ', 'バナナシュート', 'カーブシュート', '大きく曲がるシュート', 'まわりこみシュート', '曲射シュート']);
+  else if (a.maxDev < -0.55) type = pick(['切り返しカーブ', '逆巻きカーブ', 'カーブシュート', '逆回転カーブ', 'もどりカーブ']);
+  else if (a.end.y < 0.4) type = pick(['ゴロシュート', '地をはうシュート', '転がしシュート', '低空ゴロ', 'グラウンダーシュート']);
+  else if (a.slow && a.end.y > 1.2) type = pick(['ふわりループ', '放物線シュート', 'お月さまシュート', '山なりシュート', 'ふんわりシュート', 'アーチシュート']);
+  else if (a.fast) type = pick(['高速ライナー', '弾丸シュート', '稲妻シュート', '剛速球シュート', 'ビュンシュート', 'ロケットシュート']);
+  else type = pick(['ストレート', '真っ直ぐシュート', 'ど真ん中シュート', '直球シュート', 'まっすぐライナー', '正直シュート']);
+  let mod = '';
+  if (a.cornerDist < 1.05) mod = pick(['隅っこピタリ', '角狙い', 'ピタリ', '隅っこジャスト', '四隅ピタリ']);
+  else if (a.fast && a.cornerDist >= 1.05) mod = pick(['高速', '超高速', '剛速']);
+  else if (a.end.y > 1.95) mod = pick(['バー下', '上の隅', '上段', '高い']);
+  else if (a.end.y < 0.45 && a.cornerDist >= 1.05) mod = pick(['低い', '低空', 'グラウンダー']);
+  return (mod ? mod + 'の' : '') + type;
+}
+
+/* ---------- flight building ---------- */
+function buildFlight(rawPts) {
+  // rawPts: [{nx, ny, t}] screen-normalized with timestamps
+  const pts = rawPts.slice();
+  const BA = ballAnchor();
+  const d0 = Math.hypot(pts[0].nx - BA.nx, pts[0].ny - BA.ny);
+  if (d0 > 0.04) pts.unshift({ nx: BA.nx, ny: BA.ny, t: pts[0].t - 30 });
+  // wiggle: residual between raw and smoothed (goal-plane)
+  const gp = pts.map(p => { const g = s2g(p.nx, p.ny); return { x: g.x, y: Math.max(0.11, g.y) }; }); // the ball cannot go below the ground: low lines become grounders
+  const smoothW = (arr, w) => arr.map((p, i) => {
+    const a = arr[Math.max(0, i - w)], b = arr[Math.min(arr.length - 1, i + w)];
+    return { x: (a.x + p.x * 2 + b.x) / 4, y: (a.y + p.y * 2 + b.y) / 4 };
+  });
+  const smWide = smoothW(gp, 2);
+  let wig = 0; for (let i = 0; i < gp.length; i++) wig += Math.hypot(gp[i].x - smWide[i].x, gp[i].y - smWide[i].y);
+  G._wiggle = gp.length ? wig / gp.length : 0;
+  const sm = G._wiggle > 0.09 ? smoothW(gp, 1) : smWide;
+  // resample smoothed by arc length to 42 samples
+  const cum = [0];
+  for (let i = 1; i < sm.length; i++) cum.push(cum[i - 1] + Math.hypot(sm[i].x - sm[i - 1].x, sm[i].y - sm[i - 1].y));
+  const total = cum[cum.length - 1] || 1;
+  const N = 90, out = [];
+  for (let i = 0; i < N; i++) {
+    const target = total * i / (N - 1);
+    let j = 1; while (j < cum.length - 1 && cum[j] < target) j++;
+    const f = (target - cum[j - 1]) / Math.max(0.0001, cum[j] - cum[j - 1]);
+    out.push({ x: sm[j - 1].x + (sm[j].x - sm[j - 1].x) * f, y: sm[j - 1].y + (sm[j].y - sm[j - 1].y) * f });
+  }
+  const dur = Math.max(0.08, (pts[pts.length - 1].t - pts[0].t) / 1000);
+  const drawSpeed = (total / 4) / dur; // rough normalized speed
+  const T = clamp(1.9 / (0.5 + drawSpeed * 1.1), 0.4, 1.05);
+  return { pts: out, T };
+}
+function ballPosAt(fl, u) {
+  const pts = fl.pts, f = clamp(u, 0, 1) * (pts.length - 1);
+  const i = Math.min(pts.length - 2, Math.floor(f)), fr = f - i;
+  return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * fr, y: pts[i].y + (pts[i + 1].y - pts[i].y) * fr, z: SPOT_Z + (GOAL_Z - SPOT_Z) * clamp(u, 0, 1) };
+}
+function wallBlock(fl) { return null; } // PK: no wall
+
+/* ---------- UI helpers ---------- */
+const screens = { title: $('screenTitle'), pass: $('screenPass'), result: $('screenResult'), myshot: $('screenMyshot'), diff: $('screenDiff') };
+function showScreen(name) {
+  for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
+  if (!name) for (const k in screens) screens[k].classList.add('hidden');
+}
+function updatePills() {
+  const [a, b] = G.players;
+  $('scorePill').textContent = `${a.name} ${G.scores[0]} - ${G.scores[1]} ${b.name}`;
+  const k = G.players[kickerIdx()], kp = G.players[keeperIdx()];
+  const label = G.sd ? `サドンデス` : `第${G.half * 3 + G.kickInHalf + 1}キック`;
+  $('turnPill').textContent = `${label}：${k.name}のシュート（キーパー ${kp.name}）`;
+}
+function setHint(t) { const h = $('hint'); h.textContent = t || ''; h.classList.toggle('hidden', !t); }
+function popShotName(name) {
+  const el = $('shotName'); el.querySelector('.nm').textContent = '『' + name + '』';
+  el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 1500);
+}
+function popResult(t) {
+  const el = $('kickResult'); el.querySelector('.rs').textContent = t;
+  el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 1500);
+}
+
+/* ---------- match flow ---------- */
+/* ============ NG WORD FILTER (player names) ============ */
+const NG_WORDS = [
+  'ちんこ', 'チンコ', 'ちんぽ', 'チンポ', 'ちんちん', 'チンチン', 'ちんかす', 'まんこ', 'マンコ', 'おまんこ', 'まんかす',
+  'きんたま', 'キンタマ', '金玉', 'たまきん', 'くりとりす', 'クリトリス', '陰核', 'いんかく',
+  'ペニス', 'ぺにす', '陰茎', 'いんけい', '膣', '肛門', 'こうもん', 'アナル', 'あなる',
+  'セックス', 'せっくす', 'エロ', 'えろ', 'オナニー', 'おなにー', '自慰', '射精', 'しゃせい', '精液', 'せいえき', '精子',
+  'フェラ', 'ふぇら', 'パイズリ', 'ぱいずり', '手コキ', 'てこき', '中出し', 'なかだし', '潮吹き', 'しおふき',
+  '勃起', 'ぼっき', '淫乱', 'いんらん', '淫', '変態', 'へんたい', '痴漢', 'ちかん', 'レイプ', 'れいぷ', '強姦', 'ごうかん',
+  'ロリ', 'ろり', 'ショタ', 'しょた', 'ふたなり', '風俗', 'ふうぞく', 'ソープランド', 'そーぷ', '愛液', 'あいえき',
+  '巨乳', 'きょにゅう', 'おっぱい', 'オッパイ', '乳首', 'ちくび', '処女', 'しょじょ', '童貞', 'どうてい',
+  'ヤリマン', 'やりまん', 'ビッチ', 'びっち', '売春', 'ばいしゅん', '援交', 'えんこう', 'パパ活', 'ぱぱかつ',
+  'うんこ', 'ウンコ', 'くそったれ', 'クソッタレ', '死ね', 'しね',
+  'fuck', 'shit', 'dick', 'cock', 'pussy', 'bitch', 'porn', 'sex', 'anal', 'cum', 'tits', 'boobs', 'penis', 'vagina', 'hentai', 'whore', 'slut', 'nigger'
+];
+function ngNorm(s) {
+  return (s || '').toLowerCase()
+    .replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .replace(/[\s　・._\-ー]/g, '');
+}
+const NG_NORM = NG_WORDS.map(ngNorm);
+function hasNG(s) {
+  const n = ngNorm(s);
+  return NG_NORM.some(w => w && n.includes(w));
+}
+function cleanName(s, fallback) {
+  s = (s || '').trim();
+  if (!s || !hasNG(s)) return s;
+  let out = s;
+  for (const w of NG_WORDS) out = out.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '＊'.repeat(Math.max(2, w.length)));
+  return hasNG(out) ? fallback : out;
+}
+function pkPlayerId() {
+  let id = store.get('mahou_pk_pid', '');
+  if (!id) { id = 'p' + Math.floor(Math.random() * 0xffffffff).toString(16) + Date.now().toString(16); store.set('mahou_pk_pid', id); }
+  return id;
+}
+function uploadShot(rec) {
+  if (!SHOTS_FORM) return;
+  const pid = pkPlayerId();
+  const live = store.get('mahou_pk_live', '');
+  if (live && live !== rec.code) formPost(SHOTS_FORM, SHOTS_ENT, { code: live, name: '__DEL__', who: rec.who, raw: pid, date: fmtDate(new Date()) });
+  formPost(SHOTS_FORM, SHOTS_ENT, { code: rec.code, name: rec.name, who: rec.who, raw: JSON.stringify({ p: pid, pts: rec.raw }), date: rec.date });
+  store.set('mahou_pk_live', rec.code);
+}
+function startMatch(mode) {
+  G.mode = mode;
+  const n1 = cleanName(($('name1').value || '').trim().slice(0, 10), 'P1') || 'P1';
+  if (mode === 'cpu') G.players = [{ name: n1, cpu: false }, { name: 'CPU', cpu: true }];
+  else G.players = [{ name: n1, cpu: false }, { name: 'P2', cpu: false }];
+  G.scores = [0, 0]; G.log = []; G.half = 0; G.kickInHalf = 0;
+  G.sd = false; G.sdKicks = [0, 0]; G.sdGoals = [0, 0]; G.lastKicker = -1;
+  $('againBtn').style.display = '';
+  showScreen(null);
+  $('hud').classList.remove('hidden'); $('quitBtn').classList.remove('hidden');
+  if (mode === '2p') { G.set2done = false; G.sdSet = false; G.passNext = null; setupSet(0, 3); }
+  else setupKick();
+}
+function setupKick() {
+  const ki = kickerIdx();
+  G.flightLine = null;
+  G.cur = { kicker: ki, keeper: 1 - ki, flight: null, dive: null, pendingDive: null, judged: false, post: null, flyT0: 0, shotName: '', u: 0, homeOff: 0 };
+  G.draw = null; clearDraw();
+  G.phase = 'aim';
+  updatePills();
+  const k = G.players[ki], kp = G.players[1 - ki];
+  if (G.mode === '2p' && G.lastKicker !== ki) {
+    G.lastKicker = ki;
+    G.phase = 'pass';
+    $('passTitle').textContent = `${k.name} さんに渡してね`;
+    $('passText').innerHTML = `${k.name} がキッカー、${kp.name} がキーパーです。<br>キッカーは軌道を描いて、キーパーはスワイプで飛ぶ。`;
+    showScreen('pass');
+    setHint('');
+    return;
+  }
+  beginAim();
+}
+function beginAim() {
+  showScreen(null);
+  G.phase = 'aim';
+  const k = G.players[G.cur.kicker], kp = G.players[G.cur.keeper];
+  if (!k.cpu && !kp.cpu) setHint(`${k.name}：軌道を描いて！ ／ ${kp.name}：ドラッグで移動、スワイプで飛べ！`);
+  else if (!k.cpu) setHint(`${k.name}：ボールの軌道を描いてシュート！`);
+  else setHint(`CPUのシュート… ${kp.name}はドラッグで移動、スワイプで飛べ！`);
+  if (k.cpu) setTimeout(() => { if (G.phase === 'aim' && G.cur && G.players[G.cur.kicker].cpu) { if (G.mode === 'shot') codeShotKick(); else cpuKick(); } }, 1100);
+}
+function launchKick(rawPts) {
+  G.preview = null;
+  const fl = buildFlight(rawPts);
+  G.cur.flight = fl;
+  G.flightLine = { pts: fl.pts.map((p, i) => ({ x: p.x, y: p.y, z: SPOT_Z + (GOAL_Z - SPOT_Z) * (i / (fl.pts.length - 1)) })), key: 'kick' + performance.now() };
+  const a = analyzeShot(fl.pts, fl.T);
+  G.cur.shotName = nameShot(a);
+  popShotName(G.cur.shotName);
+  if (!G.players[G.cur.kicker].cpu && G.mode !== '2p') {
+    const rawS = downsampleRaw(rawPts);
+    const rec = { name: G.cur.shotName, code: genCode(), res: '', who: G.players[G.cur.kicker].name, vs: G.mode === 'cpu' ? 'CPU戦（' + DIFF_NAMES[G.diff] + '）' : G.mode === 'shot' ? 'コード対戦' : G.mode === 'free' ? 'マイシュート' : '2P対戦', date: fmtDate(new Date()), raw: rawS };
+    myShots = [rec]; store.set('mahou_pk_shots', myShots);
+    G.cur.myRec = rec;
+    uploadShot(rec);
+  }
+  if (G.mode === '2p' && G.phase2 === 'keep' && G.cur.stockRec) {
+    const rec = G.cur.stockRec;
+    rec.name = G.cur.shotName; store.set('mahou_pk_shots', myShots);
+    G.cur.myRec = rec;
+    uploadShot(rec);
+  }
+  G.phase = 'fly';
+  G.cur.flyT0 = performance.now() + 260;
+  setHint('');
+  setTimeout(sndKick, 240);
+  const kp = G.players[G.cur.keeper];
+  if (kp.cpu) {
+    const end = fl.pts[fl.pts.length - 1];
+    if (G.mode === 'free') {
+      const tx = end.x >= 0 ? -(GOAL_HW * 0.5) : (GOAL_HW * 0.5);
+      const ty = end.y > GOAL_H / 2 ? 0.35 : GOAL_H - 0.6;
+      const pp = g2n(tx, ty);
+      G.cur.pendingDive = { at: performance.now() + 300, nx: pp.nx, ny: pp.ny };
+    } else {
+      G.cur.pendingDive = { at: performance.now() + KEEPER_LV[G.diff].react, predict: true };
+    }
+  }
+}
+function diveVecTarget(dx, dy) {
+  const sign = G.view === 'keep' ? -1 : 1;
+  return { tx: clamp(sign * dx * 10, -(GOAL_HW * 0.5), GOAL_HW * 0.5), ty: clamp(0.95 - dy * 6.0, 0.25, GOAL_H - 0.15) };
+}
+function cpuPredictDive(at) {
+  const cur = G.cur, fl = cur && cur.flight;
+  if (!fl || cur.dive) return;
+  const u = clamp((at - cur.flyT0) / (fl.T * 1000), 0, 1);
+  const s0 = Math.min(1, u + (KEEPER_LV[G.diff].read || 0));
+  const p0 = ballPosAt(fl, s0), p1 = ballPosAt(fl, Math.min(1, s0 + 0.08));
+  const end = fl.pts[fl.pts.length - 1];
+  let px = end.x, py = end.y;
+  const dz = p1.z - p0.z;
+  if (dz > 0.5) { const t = (GOAL_Z - p0.z) / dz; px = p0.x + (p1.x - p0.x) * t; py = p0.y + (p1.y - p0.y) * t; }
+  if ((Math.abs(px) > GOAL_HW + 1.6 || py > GOAL_H + 1.2) && Math.random() < 0.5) return; // clearly wide: stays home
+  const sig = KEEPER_LV[G.diff].sig;
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+  const pp = g2n(px + gauss() * sig, Math.max(0.2, py + gauss() * sig * 0.7));
+  keeperDive(pp.nx, pp.ny, at);
+}
+function keeperDiveVec(dx, dy) {
+  if (!G.cur || G.cur.dive) return;
+  const tg = diveVecTarget(dx, dy);
+  G.cur.dive = { tx: tg.tx, ty: tg.ty, t0: performance.now(), travel: G.players[G.cur.keeper].cpu ? KEEPER_LV[G.diff].travel : 0.3 };
+}
+function keeperDive(nx, ny, when) {
+  if (!G.cur || G.cur.dive) return;
+  const gp = s2g(nx, ny);
+  G.cur.dive = { tx: clamp(gp.x, -(GOAL_HW * 0.5), GOAL_HW * 0.5), ty: clamp(gp.y, 0.25, GOAL_H - 0.15), t0: when, travel: G.players[G.cur.keeper].cpu ? KEEPER_LV[G.diff].travel : 0.3 };
+}
+function gloveAt(time) {
+  const d = G.cur && G.cur.dive;
+  const hx = KEEPER_HOME.x + (G.cur && G.cur.homeOff ? G.cur.homeOff : 0);
+  if (!d) return { x: hx, y: KEEPER_HOME.y, p: 0 };
+  const dt = (time - d.t0) / 1000;
+  if (dt < 0) return { x: hx, y: KEEPER_HOME.y, p: 0 };
+  const TRAVEL = d.travel || 0.3, REST_Y = 0.35;
+  const e = 1 - Math.pow(1 - clamp(dt / TRAVEL, 0, 1), 2);
+  let x = hx + (d.tx - hx) * e;
+  let y = KEEPER_HOME.y + (d.ty - KEEPER_HOME.y) * e;
+  let p = e;
+  if (dt > TRAVEL) {
+    let fallDelay = TRAVEL; // while the ball is still coming, the keeper holds full stretch
+    const cur2 = G.cur;
+    if (cur2 && cur2.flight) { const tArr = cur2.flyT0 + cur2.flight.T * 1000; if (time < tArr) fallDelay = Math.max(TRAVEL, (tArr - d.t0) / 1000); }
+    const fallT = dt - fallDelay;
+    if (fallT <= 0) return { x, y, p: 1 };
+    y = Math.max(REST_Y, d.ty - 4.4 * fallT * fallT);
+    p = 1;
+    const fallTime = Math.sqrt(Math.max(0, d.ty - REST_Y) / 4.4);
+    const landed = fallT >= fallTime;
+    if (landed) {
+      const downT = fallT - fallTime;
+      p = Math.max(0.35, 1 - downT * 1.1);
+    }
+  }
+  return { x, y, p };
+}
+function judge(kind) {
+  const cur = G.cur; if (!cur || cur.judged) return;
+  cur.judged = true;
+  const fl = cur.flight, end = fl.pts[fl.pts.length - 1];
+  let result = kind;
+  if (!result) {
+    if (end.x < -GOAL_HW || end.x > GOAL_HW || end.y > GOAL_H || end.y < 0) result = 'miss';
+    else {
+      const reach = G.players[cur.keeper].cpu ? KEEPER_LV[G.diff].reach : 1.25;
+      let best = 1e9; // ball and glove at the SAME moment, over the final stretch only
+      for (const uu of [0.88, 0.94, 1]) {
+        const bp = ballPosAt(fl, uu), g = gloveAt(cur.flyT0 + fl.T * 1000 * uu);
+        best = Math.min(best, Math.hypot(bp.x - g.x, bp.y - g.y));
+      }
+      result = (G.mode !== 'free' && best < reach) ? 'save' : 'goal';
+    }
+  }
+  cur.result = result;
+  if (cur.myRec) { cur.myRec.res = result; store.set('mahou_pk_shots', myShots); }
+  if (G.mode === 'shot' && !G.players[cur.keeper].cpu) {
+    if (result === 'save') { stats.stops++; saveStats(); }
+    else if (result === 'goal') { stats.conceded++; saveStats(); }
+  }
+  const now = performance.now();
+  const bp = result === 'wall' ? ballPosAt(fl, -WALL_Z / -GOAL_Z) : { x: end.x, y: end.y, z: GOAL_Z };
+  if (result === 'goal') {
+    G.scores[cur.kicker]++; if (G.sd) G.sdGoals[cur.kicker]++;
+    cur.post = { type: 'goal', x: bp.x, y: bp.y, z: GOAL_Z - 0.8, t0: now };
+    popResult('ゴール！'); sndGoal();
+  } else if (result === 'save') {
+    const g = gloveAt(now);
+    cur.post = { type: 'save', x: bp.x, y: bp.y, z: GOAL_Z, vx: (bp.x - g.x) * 2.2 + 1.5, vy: 2.2, vz: 7, t0: now };
+    popResult('セーブ！'); sndSave();
+  } else if (result === 'wall') {
+    cur.post = { type: 'wall', x: bp.x, y: bp.y, z: WALL_Z, vx: 0.8, vy: 1.2, vz: 6, t0: now };
+    popResult('壁にブロック！'); sndThud();
+  } else {
+    cur.post = { type: 'miss', x: bp.x, y: bp.y, z: GOAL_Z, vx: 0, vy: 0, vz: -4, t0: now };
+    popResult('枠外…'); sndThud();
+  }
+  const kName = G.players[cur.kicker].name;
+  const mark = result === 'goal' ? '<span class="g">ゴール！</span>' : result === 'save' ? 'セーブ' : result === 'wall' ? '壁にブロック' : '枠外';
+  G.log.push(`${kName}：『${cur.shotName}』 → ${mark}`);
+  updatePills();
+  G.phase = 'kickEnd';
+  setTimeout(advance, 2100);
+}
+function advance() {
+  if (G.phase === 'title') return;
+  if (G.mode === 'shot') return finishShotChallenge();
+  if (G.mode === 'free') { G.phase = 'title'; G.cur = null; clearDraw(); $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden'); setHint(''); renderMyShots(); showScreen('myshot'); return; }
+  if (G.mode === '2p') return advance2P();
+  if (G.sd) {
+    const ki = G.cur.kicker; G.sdKicks[ki]++;
+    if (G.sdKicks[0] === G.sdKicks[1] && G.sdGoals[0] !== G.sdGoals[1]) return endMatch();
+    return setupKick();
+  }
+  G.kickInHalf++;
+  if (G.kickInHalf >= 3) {
+    if (G.half === 0) { G.half = 1; G.kickInHalf = 0; return setupKick(); }
+    if (G.scores[0] !== G.scores[1]) return endMatch();
+    G.sd = true; return setupKick();
+  }
+  setupKick();
+}
+function endMatch() {
+  G.phase = 'matchEnd';
+  $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden'); setHint('');
+  const w = G.scores[0] > G.scores[1] ? 0 : 1;
+  $('winTitle').textContent = `${G.players[w].name} の勝ち！`;
+  $('finalScore').textContent = `${G.scores[0]} - ${G.scores[1]}`;
+  $('matchLog').innerHTML = G.log.join('<br>');
+  const rs = $('resShareBtn');
+  if (G.mode === 'cpu') {
+    rs.style.display = '';
+    const txt = w === 0 ? `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で勝った！` : `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で負けた…`;
+    rs.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(txt + '\nhttps://utimadev.itch.io/ippitsu-pk #一筆PK #ブラウザゲーム #インディーゲーム');
+  } else rs.style.display = 'none';
+  showScreen('result');
+}
+
+/* ---------- my shots / versus codes ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const DIFF_NAMES = ['小学生', '高校生', '選手権優勝GK', '象', '大仏', 'ベリーベリーつよしくん'];
+const SHOTS_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSeMTAv_mUQWjZx1PDDQnBRHPZbwyONv_6p6E_lPI6_rAPoSNg/formResponse';
+const SHOTS_ENT = { code: '1186379246', name: '2011907588', who: '1380358987', raw: '1947832623', date: '1629813941' };
+const SHOTS_SHEET = '1bEgqP0exgNgyR4zJsWfGU-FzzAEeo6-rb7kNPrz7a_U';
+let myShots = store.get('mahou_pk_shots', []);
+if (myShots.length > 1) { myShots = myShots.slice(0, 1); store.set('mahou_pk_shots', myShots); }
+let usedCodes = store.get('mahou_pk_used', []);
+let stats = Object.assign({ stops: 0, conceded: 0, challenged: 0, received: 0, shotGoals: 0, shotStopped: 0 }, store.get('mahou_pk_stats2', {}));
+function saveStats() { store.set('mahou_pk_stats2', stats); }
+function genCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; }
+function downsampleRaw(raw) {
+  const pts = (raw || []).filter(Boolean);
+  if (!pts.length) return [];
+  const stride = Math.max(1, Math.ceil(pts.length / 110));
+  const out = [];
+  for (let i = 0; i < pts.length; i += stride) out.push({ nx: +pts[i].nx.toFixed(3), ny: +pts[i].ny.toFixed(3), t: Math.round(pts[i].t) });
+  const l = pts[pts.length - 1];
+  if (out[out.length - 1].t !== Math.round(l.t)) out.push({ nx: +l.nx.toFixed(3), ny: +l.ny.toFixed(3), t: Math.round(l.t) });
+  return out;
+}
+function fmtDate(d) { return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function formPost(url, ent, vals) {
+  const b = new URLSearchParams();
+  for (const k in ent) b.append('entry.' + ent[k], vals[k] == null ? '' : '' + vals[k]);
+  fetch(url, { method: 'POST', mode: 'no-cors', body: b }).catch(() => {});
+}
+function sheetLoad(id) {
+  return fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:json&headers=1&_=' + Date.now())
+    .then(r => r.text())
+    .then(t => { const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); return (j.table.rows || []).map(r => (r.c || []).map(c => c && c.v != null ? String(c.v) : '')); })
+    .catch(() => null);
+}
+function renderStats() {
+  const el = $('myStats'); if (!el) return;
+  const grp = (head, total, win, lose) => `<div style="flex:1 1 100%;background:#f4f8ee;border-radius:12px;padding:10px 12px"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:#5a6e4c"><span>${head}</span><span>全${total}戦</span></div><div style="font-size:24px;font-weight:900;margin-top:2px"><span style="color:#1d9e4b">${win}勝</span> <span style="color:#d64545">${lose}敗</span></div></div>`;
+  el.innerHTML = grp('🧤 挑んだ（キーパー）', stats.challenged, stats.stops, stats.conceded) + grp('⚽ 挑まれた（キッカー）', stats.received, stats.shotGoals, stats.shotStopped);
+}
+function renderMyShots() {
+  renderStats();
+  const r = myShots[0];
+  $('myShotName').textContent = r ? '『' + (r.name || 'シュート') + '』' : 'まだシュートがありません';
+  $('myCode').textContent = r && r.code ? r.code : '—';
+  const share = $('myShareBtn');
+  if (share) {
+    share.style.display = r ? '' : 'none';
+    if (r) share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}\nこのシュート、止められる？\nhttps://utimadev.itch.io/ippitsu-pk #一筆PK #ブラウザゲーム #インディーゲーム`);
+  }
+}
+async function refreshShotRecords() {
+  if (!SHOTS_SHEET) return;
+  const rows = await sheetLoad(SHOTS_SHEET);
+  if (!rows) return;
+  const delSet = new Set(rows.filter(r => r[2] === '__DEL__').map(r => (r[1] || '').trim().toUpperCase()));
+  const byCode = {};
+  for (const r of rows) {
+    if (r[2] !== '__RESULT__' || delSet.has((r[1] || '').trim().toUpperCase())) continue;
+    const c = (r[1] || '').trim().toUpperCase();
+    byCode[c] = byCode[c] || { faced: 0, won: 0, lost: 0 };
+    byCode[c].faced++;
+    if (r[4] === 'goal') byCode[c].won++; else byCode[c].lost++;
+  }
+  const tot = { faced: 0, won: 0, lost: 0 };
+  let changed = false;
+  for (const rec of myShots) {
+    const s = byCode[(rec.code || '').toUpperCase()];
+    if (!s) continue;
+    if (rec.faced !== s.faced || rec.won !== s.won || rec.lost !== s.lost) { rec.faced = s.faced; rec.won = s.won; rec.lost = s.lost; changed = true; }
+    tot.faced += s.faced; tot.won += s.won; tot.lost += s.lost;
+  }
+  if (changed) store.set('mahou_pk_shots', myShots);
+  if (stats.received !== tot.faced || stats.shotGoals !== tot.won || stats.shotStopped !== tot.lost) { stats.received = tot.faced; stats.shotGoals = tot.won; stats.shotStopped = tot.lost; saveStats(); }
+  renderMyShots();
+}
+function watchShot(r) {
+  showScreen(null);
+  $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden');
+  $('watchBack').classList.remove('hidden');
+  G.preview = null;
+  G.watch = { fl: buildFlight(r.raw.map(p => ({ nx: p.nx, ny: p.ny, t: p.t }))), t0: performance.now() + 350 };
+}
+function codeShotKick() {
+  if (!G.codeShots || !G.codeShots.length) return cpuKick();
+  const raw = G.codeShots[G.codeIdx % G.codeShots.length]; G.codeIdx++;
+  launchKick(raw.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
+}
+function startShotChallenge(code, owner, raw, shotName) {
+  owner = cleanName((owner || '').trim().slice(0, 10), '相手');
+  G.mode = 'shot'; G.shotCode = code; G.challengeName = shotName || '';
+  const n1 = cleanName(($('name1').value || '').trim().slice(0, 10), 'P1') || 'P1';
+  G.players = [{ name: n1, cpu: false }, { name: owner || '相手', cpu: true }];
+  G.scores = [0, 0]; G.log = []; G.half = 1; G.kickInHalf = 0; G.sd = false; G.sdKicks = [0, 0]; G.sdGoals = [0, 0]; G.lastKicker = -1;
+  G.codeShots = [raw]; G.codeIdx = 0;
+  showScreen(null);
+  $('hud').classList.remove('hidden'); $('quitBtn').classList.remove('hidden');
+  $('againBtn').style.display = 'none';
+  setupKick();
+  $('turnPill').textContent = `${owner || '相手'}のシュート${shotName ? '『' + shotName + '』' : ''}（キーパー ${n1}）`;
+}
+function finishShotChallenge() {
+  const res = G.cur && G.cur.result;
+  const code = G.shotCode;
+  G.phase = 'matchEnd';
+  stats.challenged++; saveStats();
+  if (code) {
+    usedCodes.push(code); store.set('mahou_pk_used', usedCodes);
+    if (SHOTS_FORM) formPost(SHOTS_FORM, SHOTS_ENT, { code, name: '__RESULT__', who: G.players[0].name, raw: res === 'save' ? 'save' : 'goal', date: fmtDate(new Date()) });
+  }
+  $('winTitle').textContent = res === 'save' ? '止めた！🧤' : '決められた…';
+  $('finalScore').textContent = '『' + (G.challengeName || (G.cur && G.cur.shotName) || '') + '』';
+  $('matchLog').innerHTML = G.log.join('<br>');
+  $('resShareBtn').style.display = 'none';
+  $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden'); setHint('');
+  showScreen('result');
+}
+async function enterCode(code) {
+  const msg = $('codeMsg');
+  if (usedCodes.includes(code)) { msg.textContent = 'そのコードは使用済みです'; return; }
+  if (!SHOTS_SHEET) { msg.textContent = 'オンライン対戦は準備中です'; return; }
+  msg.textContent = '読み込み中…';
+  const rows = await sheetLoad(SHOTS_SHEET);
+  if (!rows) { msg.textContent = '通信に失敗しました'; return; }
+  const theirs = rows.filter(r => (r[1] || '').trim().toUpperCase() === code);
+  if (theirs.some(r => r[2] === '__DEL__')) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
+  if (theirs.some(r => r[2] === '__RESULT__')) { msg.textContent = 'そのコードは使用済みです'; return; }
+  let shot = null;
+  for (const r of theirs) {
+    if (r[2] === '__RESULT__') continue;
+    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '' }; break; } } catch (e) {}
+  }
+  if (!shot) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
+  msg.textContent = '';
+  startShotChallenge(code, shot.owner, shot.raw, shot.name);
+}
+function startFree() {
+  G.mode = 'free';
+  const n1 = cleanName(($('name1').value || '').trim().slice(0, 10), 'P1') || 'P1';
+  G.players = [{ name: n1, cpu: false }, { name: 'CPU', cpu: true }];
+  G.scores = [0, 0]; G.log = []; G.half = 0; G.kickInHalf = 0; G.sd = false; G.sdKicks = [0, 0]; G.sdGoals = [0, 0]; G.lastKicker = -1;
+  $('againBtn').style.display = '';
+  showScreen(null);
+  $('hud').classList.remove('hidden'); $('quitBtn').classList.remove('hidden');
+  setupKick();
+  $('turnPill').textContent = 'マイシュート：線を描いてシュート';
+}
+$('freeBtn').onclick = () => startFree();
+/* ---------- 2P: draw first, then the other keeps ---------- */
+function showPass(title, text, next) {
+  G.phase = 'pass';
+  $('passTitle').textContent = title;
+  $('passText').innerHTML = text;
+  G.passNext = next;
+  showScreen('pass');
+}
+function setupSet(shooter, size) {
+  G.setShooter = shooter; G.setSize = size; G.drawnShots = []; G.drawnRecs = [];
+  G.phase2 = 'draw'; G.half = shooter;
+  const sName = G.players[shooter].name;
+  G.cur = { kicker: shooter, keeper: 1 - shooter, flight: null, dive: null, pendingDive: null, judged: false, post: null, flyT0: 0, shotName: '', u: 0, homeOff: 0 };
+  G.draw = null; clearDraw();
+  G.phase = 'aim';
+  showScreen(null);
+  updatePills();
+  $('turnPill').textContent = `${sName}：シュートを${size}本描いて（0/${size}）`;
+  setHint(`${sName}は線を描いてストック。蹴るのは相手がキーパーのとき`);
+}
+function stockShot(pts) {
+  const shooter = G.setShooter, sName = G.players[shooter].name;
+  const rawS = downsampleRaw(pts);
+  G.drawnShots.push(pts.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
+  const rec = { name: '', code: genCode(), res: '', who: sName, vs: '2P対戦', date: fmtDate(new Date()), raw: rawS };
+  myShots = [rec]; store.set('mahou_pk_shots', myShots);
+  G.drawnRecs.push(rec);
+  const n = G.drawnShots.length;
+  if (n >= G.setSize) {
+    const kpName = G.players[1 - shooter].name;
+    showPass(`${kpName} さんに渡してね`, `${sName} のシュート${G.setSize}本を止めてください。<br>ドラッグで移動、スワイプで飛ぶ。`, () => beginKeep());
+  } else {
+    $('turnPill').textContent = `${sName}：シュートを${G.setSize}本描いて（${n}/${G.setSize}）`;
+    setHint(`${n}本目ストック！`);
+  }
+}
+function beginKeep() {
+  G.phase2 = 'keep'; G.defIdx = 0;
+  showScreen(null);
+  setupKeepShot();
+}
+function setupKeepShot() {
+  const shooter = G.setShooter, keeper = 1 - shooter;
+  G.half = shooter;
+  G.cur = { kicker: shooter, keeper, flight: null, dive: null, pendingDive: null, judged: false, post: null, flyT0: 0, shotName: '', u: 0, homeOff: 0, stockRec: G.drawnRecs[G.defIdx] };
+  G.draw = null; clearDraw();
+  G.phase = 'aim';
+  updatePills();
+  $('turnPill').textContent = `${G.players[keeper].name}：${G.players[shooter].name}の${G.defIdx + 1}本目を止めて`;
+  setHint('');
+  const raw = G.drawnShots[G.defIdx];
+  setTimeout(() => { if (G.phase === 'aim' && G.cur && !G.cur.flight && G.phase2 === 'keep') launchKick(raw.map(p => ({ nx: p.nx, ny: p.ny, t: p.t }))); }, 1000);
+}
+function advance2P() {
+  if (G.phase2 !== 'keep') return;
+  G.defIdx++;
+  if (G.defIdx < G.drawnShots.length) return setupKeepShot();
+  const shooter = G.setShooter;
+  if (G.sdSet) {
+    if (shooter === 0) {
+      const n1 = G.players[1].name;
+      return showPass(`${n1} さんに渡してね`, `サドンデス：今度は ${n1} がシュートを描く`, () => setupSet(1, 1));
+    }
+    const d0 = G.scores[0] - G.sdBase[0], d1 = G.scores[1] - G.sdBase[1];
+    if (d0 !== d1) return endMatch();
+    const n0 = G.players[0].name;
+    G.sdBase = [...G.scores];
+    return showPass(`${n0} さんに渡してね`, `サドンデス：${n0} がシュートを描く`, () => setupSet(0, 1));
+  }
+  if (!G.set2done) {
+    G.set2done = true;
+    const n1 = G.players[1].name;
+    return showPass(`${n1} さんに渡してね`, `攻守交替。今度は ${n1} がシュートを描く`, () => setupSet(1, 3));
+  }
+  if (G.scores[0] !== G.scores[1]) return endMatch();
+  G.sdSet = true; G.sdBase = [...G.scores];
+  const n0 = G.players[0].name;
+  return showPass(`${n0} さんに渡してね`, `同点サドンデス：${n0} がシュートを描く`, () => setupSet(0, 1));
+}
+$('myShotHead').onclick = () => { if (myShots[0] && myShots[0].raw) watchShot(myShots[0]); };
+$('myBtn').onclick = () => { renderMyShots(); showScreen('myshot'); refreshShotRecords(); };
+$('myBackBtn').onclick = () => showScreen('title');
+$('watchBack').onclick = () => { G.watch = null; $('watchBack').classList.add('hidden'); renderMyShots(); showScreen('myshot'); };
+$('codeBtn').onclick = () => {
+  const v = ($('codeIn').value || '').trim().toUpperCase();
+  if (v.length < 4) { $('codeMsg').textContent = 'コードを入力してください'; return; }
+  enterCode(v);
+};
+
+/* ---------- CPU kicker ---------- */
+function cpuKick() {
+  const diff = G.diff, L = KICK_LV[diff];
+  const side = Math.random() < 0.5 ? -1 : 1;
+  let tx = side * Math.min(GOAL_HW - 0.35, L.tx[0] + Math.random() * L.tx[1]);
+  const high = Math.random() < L.highP;
+  let ty = high ? 2.15 + Math.random() * (0.5 + diff * 0.05) : Math.max(0.16, 0.3 - diff * 0.025) + Math.random() * 0.45;
+  const dur = L.dur[0] + Math.random() * (L.dur[1] - L.dur[0]);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const cx = tx * (0.3 + Math.random() * 0.3) + (Math.random() - 0.5) * L.curve;
+    const cy = Math.max(ty, 1.2) + Math.random() * 1.3 + attempt * 0.35;
+    const raw = [];
+    const N = 26;
+    for (let i = 0; i < N; i++) {
+      const u = i / (N - 1);
+      const wob = Math.sin(u * Math.PI * (2 + diff * 0.7)) * (L.wig || 0) * 4 * u * (1 - u);
+      const x = (1 - u) * (1 - u) * 0 + 2 * (1 - u) * u * cx + u * u * tx + wob;
+      const y = (1 - u) * (1 - u) * 0.35 + 2 * (1 - u) * u * cy + u * u * ty + Math.cos(u * Math.PI * 3) * (L.wig || 0) * 1.2 * u * (1 - u);
+      const s = g2n(x, y);
+      raw.push({ nx: s.nx, ny: s.ny, t: u * dur });
+    }
+    const fl = buildFlight(raw);
+    const e = fl.pts[fl.pts.length - 1];
+    const inside = Math.abs(e.x) < GOAL_HW - 0.12 && e.y < GOAL_H - 0.08 && e.y > 0.05;
+    if (inside || attempt === 3) { launchKick(raw); return; }
+    tx *= 0.8; ty = 0.35 + (ty - 0.35) * 0.78; // pull the target in and retry: the CPU never shoots off-frame
+  }
+}
+
+/* ---------- input: draw + keeper tap ---------- */
+const drawC = $('drawC'), dctx = drawC.getContext('2d');
+function sizeDraw() { drawC.width = innerWidth * devicePixelRatio; drawC.height = innerHeight * devicePixelRatio; }
+addEventListener('resize', sizeDraw); sizeDraw();
+function clearDraw() { G.preview = null; }
+function paintDraw() {
+  if (!G.draw || G.draw.pts.length < 2) { G.preview = null; return; }
+  const pts = G.draw.pts.slice();
+  const BA = ballAnchor();
+  if (Math.hypot(pts[0].nx - BA.nx, pts[0].ny - BA.ny) > 0.04) pts.unshift({ nx: BA.nx, ny: BA.ny });
+  const step = Math.max(1, Math.floor(pts.length / 160));
+  const out = [];
+  for (let i = 0; i < pts.length; i += step) {
+    const u = i / (pts.length - 1);
+    const g = s2g(pts[i].nx, pts[i].ny);
+    out.push({ x: g.x, y: Math.max(0.05, g.y), z: SPOT_Z + (GOAL_Z - SPOT_Z) * u });
+  }
+  const last = pts[pts.length - 1];
+  const gl = s2g(last.nx, last.ny);
+  out.push({ x: gl.x, y: Math.max(0.05, gl.y), z: GOAL_Z });
+  G.preview = { pts: out, key: G.draw.pts.length + ':' + last.t };
+}
+drawC.addEventListener('pointerdown', e => {
+  const nx = e.clientX / innerWidth, ny = e.clientY / innerHeight, now = performance.now();
+  if (G.phase === 'aim') {
+    const k = G.players[G.cur.kicker], kp = G.players[G.cur.keeper];
+    if (!k.cpu && !G.draw && G.phase2 !== 'keep') { G.draw = { id: e.pointerId, pts: [{ nx, ny, t: now }] }; try { drawC.setPointerCapture(e.pointerId); } catch (err) {} return; }
+    if (!kp.cpu && !G.cur.dive && G.phase2 !== 'draw') G.kpSwipe = { id: e.pointerId, x0: nx, y0: ny, startOff: G.cur.homeOff || 0, samples: [{ nx, ny, t: now }], dive: null };
+  } else if (G.phase === 'fly') {
+    const kp = G.players[G.cur.keeper];
+    if (!kp.cpu && !G.cur.dive) G.kpSwipe = { id: e.pointerId, x0: nx, y0: ny, startOff: G.cur.homeOff || 0, samples: [{ nx, ny, t: now }], dive: null };
+  }
+});
+drawC.addEventListener('pointermove', e => {
+  if (G.kpSwipe && e.pointerId === G.kpSwipe.id && G.cur) {
+    const sw = G.kpSwipe;
+    const nx = e.clientX / innerWidth, ny = e.clientY / innerHeight, now = performance.now();
+    sw.samples.push({ nx, ny, t: now });
+    if (sw.samples.length > 14) sw.samples.shift();
+    const sign = G.view === 'keep' ? -1 : 1;
+    if (sw.dive) {
+      sw.dive.tx = clamp(sw.baseTx + sign * (nx - sw.fireNx) * 12, -(GOAL_HW * 0.5), GOAL_HW * 0.5);
+      sw.dive.ty = clamp(sw.baseTy - (ny - sw.fireNy) * 7, 0.25, GOAL_H - 0.15);
+    } else if (!G.cur.dive) {
+      let s0 = sw.samples[0];
+      for (const s of sw.samples) { if (now - s.t <= 95) { s0 = s; break; } }
+      const dt = Math.max(1, now - s0.t) / 1000;
+      const wdx = nx - s0.nx, wdy = ny - s0.ny;
+      const vel = Math.hypot(wdx, wdy) / dt;
+      const totalDx = nx - sw.x0;
+      if ((vel > 1.15 && Math.hypot(wdx, wdy) > 0.028) || Math.abs(totalDx) > 0.34) {
+        const tg = { tx: clamp((G.cur.homeOff || 0) + sign * wdx * 14, -(GOAL_HW * 0.5), GOAL_HW * 0.5), ty: clamp(0.95 - wdy * 8, 0.25, GOAL_H - 0.15) };
+        G.cur.dive = { tx: tg.tx, ty: tg.ty, t0: now, travel: 0.3 };
+        sw.dive = G.cur.dive; sw.baseTx = tg.tx; sw.baseTy = tg.ty; sw.fireNx = nx; sw.fireNy = ny;
+      } else {
+        G.cur.homeOff = clamp(sw.startOff + sign * totalDx * 4.5, -(GOAL_HW - 0.7), GOAL_HW - 0.7);
+      }
+    }
+  }
+  if (!G.draw || e.pointerId !== G.draw.id) return;
+  const coal = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+  const evs = (coal && coal.length) ? coal : [e];
+  for (const ev of evs) {
+    const nx = ev.clientX / innerWidth, ny = ev.clientY / innerHeight;
+    const last = G.draw.pts[G.draw.pts.length - 1];
+    if (Math.hypot(nx - last.nx, ny - last.ny) < 0.004) continue;
+    G.draw.pts.push({ nx, ny, t: performance.now() });
+  }
+  paintDraw();
+});
+function endDraw(e) {
+  if (!G.draw || e.pointerId !== G.draw.id) return;
+  const pts = G.draw.pts; G.draw = null;
+  pts.push({ nx: e.clientX / innerWidth, ny: e.clientY / innerHeight, t: performance.now() }); // the lift point is the true end of the stroke
+  let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].nx - pts[i - 1].nx, pts[i].ny - pts[i - 1].ny);
+  if (pts.length >= 6 && len > 0.12 && G.phase === 'aim') { if (G.mode === '2p' && G.phase2 === 'draw') { stockShot(pts); clearDraw(); } else launchKick(pts); }
+  else { clearDraw(); if (G.phase === 'aim') setHint('もっと長く描いて！'); }
+}
+drawC.addEventListener('pointerup', endDraw);
+drawC.addEventListener('pointerup', e => { if (G.kpSwipe && e.pointerId === G.kpSwipe.id) G.kpSwipe = null; });
+drawC.addEventListener('pointercancel', () => { G.draw = null; G.kpSwipe = null; clearDraw(); });
+
+/* ---------- main loop ---------- */
+let loadErrTimer = setTimeout(() => { if (!window.R3D) $('loadErr').classList.remove('hidden'); }, 9000);
+function tick() {
+  requestAnimationFrame(tick);
+  const now = performance.now();
+  if (G.watch) {
+    const fl = G.watch.fl;
+    const u = clamp((now - G.watch.t0) / (fl.T * 1000), 0, 1);
+    const bp = ballPosAt(fl, u);
+    const linePts = fl.pts.map((p, i) => ({ x: p.x, y: p.y, z: SPOT_Z + (GOAL_Z - SPOT_Z) * (i / (fl.pts.length - 1)) }));
+    if (window.R3D) R3D.frame({ ball: { x: bp.x, y: bp.y, z: bp.z, visible: now >= G.watch.t0 }, keeper: { x: KEEPER_HOME.x, y: KEEPER_HOME.y, p: 0 }, keeperKind: 'human', kicker: { x: 0, z: SPOT_Z, run: 0, kick: u > 0.02 && u < 0.25 ? 1 : 0 }, view: 'kick', flight: { pts: linePts, u }, preview: null });
+    return;
+  }
+  let ball = { x: 0, y: 0.11 + Math.sin(now / 500) * 0.008, z: SPOT_Z, spin: now / 300 };
+  let wallP = 0;
+  if (G.cur && G.cur.pendingDive && now >= G.cur.pendingDive.at) {
+    const pd = G.cur.pendingDive; G.cur.pendingDive = null;
+    if (pd.predict) cpuPredictDive(pd.at); else keeperDive(pd.nx, pd.ny, pd.at);
+  }
+  if (G.phase === 'fly' && G.cur && G.cur.flight) {
+    const fl = G.cur.flight;
+    const u = (now - G.cur.flyT0) / (fl.T * 1000);
+    if (!G.cur.judged) G.cur.u = clamp(u, 0, 1);
+    if (u >= 0) {
+      const wb = wallBlock(fl);
+      const uW = -WALL_Z / -GOAL_Z;
+      if (wb && u >= uW) { judge('wall'); }
+      else if (u >= 1) { ball = ballPosAt(fl, 1); judge(null); }
+      else ball = ballPosAt(fl, u);
+      if (G.phase === 'fly') ball.spin = now / 60;
+    }
+  }
+  if (G.phase === 'kickEnd' && G.cur && G.cur.post) {
+    const p = G.cur.post, dt = (now - p.t0) / 1000;
+    if (p.type === 'goal') ball = { x: p.x, y: Math.max(0.12, p.y - dt * 1.6), z: p.z, spin: 0 };
+    else ball = { x: p.x + (p.vx || 0) * dt, y: Math.max(0.11, p.y + (p.vy || 0) * dt - 4.6 * dt * dt), z: p.z + (p.vz || 0) * dt, spin: now / 90 };
+  }
+  const glove = G.cur ? gloveAt(now) : { x: KEEPER_HOME.x, y: KEEPER_HOME.y, p: 0 };
+  G.view = 'kick';
+  if (G.cur && !G.players[G.cur.keeper].cpu && (G.players[G.cur.kicker].cpu || G.phase === 'fly' || G.phase === 'kickEnd' || G.phase2 === 'keep')) G.view = 'keep';
+  const showFlight = (G.phase === 'fly' || G.phase === 'kickEnd') && G.flightLine;
+  if (window.R3D) R3D.frame({ ball, keeper: glove, t: now / 1000, preview: G.preview, flight: showFlight ? G.flightLine : null, flightU: showFlight ? G.cur.u : 0, keeperKind: G.cur && G.players[G.cur.keeper].cpu ? KEEPER_KIND[G.diff] : 'human', kickerKind: G.cur && G.players[G.cur.kicker].cpu && G.mode === 'cpu' ? KEEPER_KIND[G.diff] : 'human', view: G.view || 'kick' });
+}
+requestAnimationFrame(tick);
+
+/* ---------- wiring ---------- */
+$('name1').value = store.get('mahou_pk_name', '');
+$('name1').addEventListener('input', () => store.set('mahou_pk_name', $('name1').value.trim().slice(0, 10)));
+$('cpuBtn').addEventListener('click', () => showScreen('diff'));
+document.querySelectorAll('#diffPick button[data-d]').forEach(b => b.addEventListener('click', () => { G.diff = +b.dataset.d; startMatch('cpu'); }));
+$('diffBack').addEventListener('click', () => showScreen('title'));
+$('vsBtn').addEventListener('click', () => startMatch('2p'));
+$('passBtn').addEventListener('click', () => { if (G.passNext) { const f = G.passNext; G.passNext = null; showScreen(null); f(); } else beginAim(); });
+$('againBtn').addEventListener('click', () => startMatch(G.mode));
+$('backBtn').addEventListener('click', () => { G.phase = 'title'; showScreen('title'); });
+$('quitBtn').addEventListener('click', () => {
+  G.phase = 'title'; G.cur = null; clearDraw();
+  $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden'); setHint('');
+  if (G.mode === 'free') { renderMyShots(); showScreen('myshot'); } else showScreen('title');
+});
+</script>
+<script type="module">
+import * as THREE from 'three';
+const GOAL_HW = 4.3, GOAL_H = 2.9, GOAL_Z = -18, WALL_Z = -9.15;
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fd4ee);
+scene.fog = new THREE.Fog(0x9fd4ee, 34, 60);
+const camera = new THREE.PerspectiveCamera(66, 1, 0.1, 120);
+camera.position.set(0, 1.7, -4.4);
+camera.lookAt(0, 1.05, GOAL_Z);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3d7a33, 1.05));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(6, 12, 4); scene.add(sun);
+
+const netMeshes = [];
+const mapCam = new THREE.PerspectiveCamera(66, 1, 0.1, 120);
+mapCam.position.set(0, 1.7, -4.4); mapCam.lookAt(0, 1.05, GOAL_Z);
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); mapCam.aspect = w / h; mapCam.updateProjectionMatrix(); }
+addEventListener('resize', size);
+
+// pitch with mow stripes
+{
+  const gA = new THREE.MeshLambertMaterial({ color: 0x58a84b }), gB = new THREE.MeshLambertMaterial({ color: 0x4c9a41 });
+  for (let i = 0; i < 12; i++) {
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(46, 4), i % 2 ? gA : gB);
+    s.rotation.x = -Math.PI / 2; s.position.set(0, 0, 6 - i * 4); scene.add(s);
+  }
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const mkLine = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), lineMat); m.position.set(x, 0.011, z); scene.add(m); };
+  // penalty area, drawn properly (goal line z=-18, PK spot z=-7)
+  mkLine(30, 0.18, 0, GOAL_Z);                                  // goal line
+  mkLine(26, 0.18, 0, -1.5);                                    // penalty box front (behind the kicker)
+  mkLine(0.18, 16.5, -11, -9.75); mkLine(0.18, 16.5, 11, -9.75); // penalty box sides
+  mkLine(14.4, 0.18, 0, -12.5);                                 // goal area front
+  mkLine(0.18, 5.5, -7.2, -15.25); mkLine(0.18, 5.5, 7.2, -15.25); // goal area sides
+  { // penalty spot + arc (radius 6.8 around the spot, ends meet the box front line)
+    const spot = new THREE.Mesh(new THREE.CircleGeometry(0.17, 16), lineMat);
+    spot.rotation.x = -Math.PI / 2; spot.position.set(0, 0.012, -7); scene.add(spot);
+    let prev = null;
+    for (let px = -4; px <= 4.001; px += 0.5) {
+      const pz = -7 + Math.sqrt(6.8 * 6.8 - px * px);
+      if (prev) {
+        const dx = px - prev[0], dz = pz - prev[1], len = Math.hypot(dx, dz);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(len + 0.05, 0.02, 0.15), lineMat);
+        m.position.set((px + prev[0]) / 2, 0.011, (pz + prev[1]) / 2);
+        m.rotation.y = Math.atan2(-dz, dx);
+        scene.add(m);
+      }
+      prev = [px, pz];
+    }
+  }
+}
+// goal + net
+{
+  const postMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
+  const post = (x, y, len, vert) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, len, 10), postMat);
+    m.position.set(x, y, GOAL_Z); if (!vert) m.rotation.z = Math.PI / 2; scene.add(m);
+  };
+  post(-GOAL_HW, GOAL_H / 2, GOAL_H, true); post(GOAL_HW, GOAL_H / 2, GOAL_H, true);
+  post(0, GOAL_H, GOAL_HW * 2, false);
+  const nc = document.createElement('canvas'); nc.width = nc.height = 96;
+  const nx = nc.getContext('2d'); nx.strokeStyle = 'rgba(255,255,255,0.85)'; nx.lineWidth = 2;
+  for (let i = 0; i <= 96; i += 12) { nx.beginPath(); nx.moveTo(i, 0); nx.lineTo(i, 96); nx.stroke(); nx.beginPath(); nx.moveTo(0, i); nx.lineTo(96, i); nx.stroke(); }
+  const netTex = new THREE.CanvasTexture(nc); netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+  const netMat = new THREE.MeshBasicMaterial({ map: netTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_HW * 2, GOAL_H), netMat); netMeshes.push(back);
+  back.position.set(0, GOAL_H / 2, GOAL_Z - 1.1); scene.add(back);
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(GOAL_HW * 2, 1.1), netMat); netMeshes.push(top);
+  top.rotation.x = Math.PI / 2; top.position.set(0, GOAL_H, GOAL_Z - 0.55); scene.add(top);
+  for (const s of [-1, 1]) {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(1.1, GOAL_H), netMat); netMeshes.push(side);
+    side.rotation.y = Math.PI / 2; side.position.set(s * GOAL_HW, GOAL_H / 2, GOAL_Z - 0.55); scene.add(side);
+  }
+}
+// 3x3 dashed dividers on the goal face (chunky dashes, distinct from the net)
+{
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const dashV = new THREE.BoxGeometry(0.06, 0.24, 0.02);
+  const dashH = new THREE.BoxGeometry(0.24, 0.06, 0.02);
+  for (const fx of [-GOAL_HW / 3, GOAL_HW / 3])
+    for (let y = 0.16; y < GOAL_H - 0.05; y += 0.38) {
+      const m = new THREE.Mesh(dashV, dashMat);
+      m.position.set(fx, y, GOAL_Z + 0.06);
+      scene.add(m);
+    }
+  for (const fy of [GOAL_H / 3, GOAL_H * 2 / 3])
+    for (let x = -GOAL_HW + 0.16; x < GOAL_HW - 0.05; x += 0.38) {
+      const m = new THREE.Mesh(dashH, dashMat);
+      m.position.set(x, fy, GOAL_Z + 0.06);
+      scene.add(m);
+    }
+}
+// simple human builder
+function human(shirt, shorts, skin) {
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshLambertMaterial({ color: c });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.26), mat(shirt)); torso.position.y = 1.06; g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), mat(skin)); head.position.y = 1.56; g.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.165, 10, 6, 0, Math.PI * 2, 0, 1.4), mat(0x2b2118)); hair.position.y = 1.585; g.add(hair);
+  for (const s of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.72, 0.17), mat(shorts)); leg.position.set(s * 0.14, 0.38, 0); g.add(leg);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.58, 0.13), mat(shirt)); arm.position.set(s * 0.33, 1.05, 0); arm.rotation.z = s * 0.12; g.add(arm);
+  }
+  return g;
+}
+// keeper
+function elephant() {
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshLambertMaterial({ color: c });
+  const gray = mat(0x9aa0a3), dark = mat(0x83898d);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 12), gray); body.scale.set(1.3, 1.02, 0.88); body.position.y = 1.18; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 10), gray); head.position.set(0, 1.62, 0.6); g.add(head);
+  for (const s of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.44, 10, 8), dark); ear.scale.set(0.32, 1, 0.85); ear.position.set(s * 0.58, 1.68, 0.5); g.add(ear);
+    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.36, 6), mat(0xffffff)); tusk.position.set(s * 0.22, 1.28, 1.0); tusk.rotation.x = 2.6; g.add(tusk);
+    const legF = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.72, 8), dark); legF.position.set(s * 0.65, 0.36, 0.42); g.add(legF);
+    const legB = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.72, 8), dark); legB.position.set(s * 0.65, 0.36, -0.48); g.add(legB);
+  }
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.07, 0.95, 8), gray); trunk.position.set(0, 1.08, 1.0); trunk.rotation.x = 0.25; g.add(trunk);
+  return g;
+}
+function buddha() {
+  const g = new THREE.Group();
+  const mat = c => new THREE.MeshLambertMaterial({ color: c });
+  const bronze = mat(0xa87f2f), dark = mat(0x86631f);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.5, 1.0), dark); base.position.y = 0.25; g.add(base);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.78, 14, 12), bronze); belly.scale.set(1.05, 1.05, 0.8); belly.position.y = 1.05; g.add(belly);
+  const shoulder = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.5, 0.6), bronze); shoulder.position.y = 1.62; g.add(shoulder);
+  for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.95, 8), bronze); arm.position.set(s * 0.8, 1.05, 0.1); arm.rotation.z = s * 0.5; g.add(arm); }
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), bronze); head.position.y = 2.15; g.add(head);
+  const bump = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), dark); bump.position.y = 2.46; g.add(bump);
+  return g;
+}
+const keepers = {
+  human: { grp: human(0xf5c81e, 0x222222, 0x8a5a34), lift: 0.55 },
+  kid: { grp: human(0x7ec3ee, 0x30507a, 0xf2c79b), lift: 0.55, scale: 0.72 },
+  high: { grp: human(0x27354f, 0x27354f, 0xe8b98a), lift: 0.55 },
+  champ: { grp: human(0xe2483d, 0x181818, 0x8a5a34), lift: 0.55, scale: 1.05 },
+  ele: { grp: elephant(), lift: 0.3 },
+  buddha: { grp: buddha(), lift: 0.1, scale: 1.4 },
+  tsuyoshi: { grp: human(0xffffff, 0xd43a2a, 0xe8b98a), lift: 0.55 },
+};
+{ const band = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.08, 0.37), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  band.position.y = 1.63; keepers.tsuyoshi.grp.add(band);
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.045, 10), new THREE.MeshBasicMaterial({ color: 0xd43a2a }));
+  dot.position.set(0, 1.63, 0.19); keepers.tsuyoshi.grp.add(dot); }
+for (const key in keepers) { const e = keepers[key]; if (e.scale) e.grp.scale.setScalar(e.scale); e.grp.position.set(0, 0, GOAL_Z + 0.5); e.grp.visible = false; scene.add(e.grp); }
+keepers.human.grp.visible = true;
+let activeKeeper = keepers.human;
+// kickers (beside the ball; the CPU kicker IS the chosen character)
+const kickers = {
+  human: human(0xd23b2e, 0xffffff, 0xe8b98a),
+  kid: human(0x7ec3ee, 0x30507a, 0xf2c79b),
+  high: human(0x27354f, 0x27354f, 0xe8b98a),
+  champ: human(0xe2483d, 0x181818, 0x8a5a34),
+  ele: elephant(),
+  buddha: buddha(),
+  tsuyoshi: human(0xffffff, 0xd43a2a, 0xe8b98a),
+};
+{ const band = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.08, 0.37), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  band.position.y = 1.63; kickers.tsuyoshi.add(band);
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(0.045, 10), new THREE.MeshBasicMaterial({ color: 0xd43a2a }));
+  dot.position.set(0, 1.63, 0.19); kickers.tsuyoshi.add(dot); }
+const KICK_SCALE = { human: 0.92, kid: 0.68, high: 0.92, champ: 0.98, ele: 0.95, buddha: 1.3, tsuyoshi: 0.92 };
+const KICK_POSX = { ele: 1.95, buddha: 1.75 };
+for (const key in kickers) { const g = kickers[key]; g.position.set(KICK_POSX[key] || 1.15, 0, -5.9); g.rotation.y = Math.PI + 0.5; g.scale.setScalar(KICK_SCALE[key] || 0.92); g.visible = false; scene.add(g); }
+kickers.human.visible = true;
+let activeKicker = kickers.human;
+// ball
+const ballTexC = document.createElement('canvas'); ballTexC.width = ballTexC.height = 128;
+{
+  const x = ballTexC.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, 128, 128); x.fillStyle = '#222228';
+  for (const [px, py] of [[20, 20], [90, 14], [55, 60], [10, 95], [105, 100], [64, 110]]) { x.beginPath(); x.arc(px, py, 13, 0, 7); x.fill(); }
+}
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 14), new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(ballTexC) }));
+ball.position.set(0, 0.11, -7); scene.add(ball);
+// trajectory preview (the line being drawn, rendered in 3D)
+let previewMesh = null, previewGlow = null, previewKey = '';
+const previewMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const previewGlowMat = new THREE.MeshBasicMaterial({ color: 0xffa600, transparent: true, opacity: 0.45 });
+let flightMesh = null, flightGlow = null, flightKey = '', flightIdx = 0;
+const flightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const flightGlowMat = new THREE.MeshBasicMaterial({ color: 0xffa600, transparent: true, opacity: 0.4 });
+function setFlight(fp, u) {
+  const key = fp ? fp.key : '';
+  if (key !== flightKey) {
+    flightKey = key;
+    if (flightMesh) { scene.remove(flightMesh); flightMesh.geometry.dispose(); flightMesh = null; }
+    if (flightGlow) { scene.remove(flightGlow); flightGlow.geometry.dispose(); flightGlow = null; }
+    if (fp && fp.pts.length >= 2) {
+      const v = fp.pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+      const curve = new THREE.CatmullRomCurve3(v, false, 'centripetal');
+      const seg = Math.min(140, fp.pts.length * 2);
+      flightGlow = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, 0.048, 6, false), flightGlowMat);
+      flightMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, 0.02, 6, false), flightMat);
+      flightIdx = flightMesh.geometry.index.count;
+      scene.add(flightGlow); scene.add(flightMesh);
+    }
+  }
+  if (flightMesh) {
+    const c = Math.floor(Math.min(1, Math.max(0, u || 0)) * flightIdx / 3) * 3;
+    flightMesh.geometry.setDrawRange(0, c);
+    flightGlow.geometry.setDrawRange(0, c);
+  }
+}
+function setPreview(pv) {
+  const pts = pv ? pv.pts : null;
+  const key = pv ? pv.key : '';
+  if (key === previewKey) return;
+  previewKey = key;
+  if (previewMesh) { scene.remove(previewMesh); previewMesh.geometry.dispose(); previewMesh = null; }
+  if (previewGlow) { scene.remove(previewGlow); previewGlow.geometry.dispose(); previewGlow = null; }
+  if (!pts || pts.length < 2) return;
+  const v = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+  const curve = new THREE.CatmullRomCurve3(v, false, 'centripetal');
+  const seg = Math.min(140, pts.length * 2);
+  previewGlow = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, 0.048, 6, false), previewGlowMat);
+  previewMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, 0.02, 6, false), previewMat);
+  scene.add(previewGlow); scene.add(previewMesh);
+}
+
+function frame(s) {
+  const b = s.ball;
+  ball.position.set(b.x, Math.max(0.11, b.y), b.z);
+  ball.rotation.x -= 0.32; ball.rotation.z = b.spin || 0;
+  setPreview(s.preview);
+  setFlight(s.flight, s.flightU);
+  const k = s.keeper;
+  if (s.view === 'keep') { camera.position.set(0, 8.9, -30.4); camera.lookAt(0, 0.85, -13.4); if (camera.fov !== 70) { camera.fov = 70; camera.updateProjectionMatrix(); } }
+  else { camera.position.set(0, 1.7, -4.4); camera.lookAt(0, 1.05, GOAL_Z); if (camera.fov !== 66) { camera.fov = 66; camera.updateProjectionMatrix(); } }
+  const want = keepers[s.keeperKind] || keepers.human;
+  if (want !== activeKeeper) { activeKeeper.grp.visible = false; activeKeeper = want; activeKeeper.grp.visible = true; }
+  activeKeeper.grp.position.x = k.x * 0.88;
+  activeKeeper.grp.position.y = Math.max(0, k.y - 0.55) * k.p * activeKeeper.lift;
+  activeKeeper.grp.position.z = GOAL_Z + 0.5;
+  activeKeeper.grp.rotation.z = -Math.sign(k.x) * k.p * 1.15;
+  activeKeeper.grp.rotation.x = k.p * 0.25;
+  const wantK = kickers[s.kickerKind] || kickers.human;
+  if (wantK !== activeKicker) { activeKicker.visible = false; activeKicker = wantK; activeKicker.visible = true; }
+  activeKicker.position.y = Math.abs(Math.sin(s.t * 2.6)) * 0.025;
+  renderer.render(scene, camera);
+}
+size();
+function mapPoint(nx, ny) {
+  const v = new THREE.Vector3(nx * 2 - 1, -(ny * 2 - 1), 0.5).unproject(mapCam);
+  const dir = v.sub(mapCam.position).normalize();
+  const t = (GOAL_Z - mapCam.position.z) / dir.z;
+  const p = mapCam.position.clone().add(dir.multiplyScalar(t));
+  return { x: p.x, y: p.y };
+}
+function projectPoint(x, y) {
+  const v = new THREE.Vector3(x, y, GOAL_Z).project(mapCam);
+  return { nx: (v.x + 1) / 2, ny: (1 - v.y) / 2 };
+}
+function spotScreen() {
+  const v = new THREE.Vector3(0, 0.11, -7).project(mapCam);
+  return { nx: (v.x + 1) / 2, ny: (1 - v.y) / 2 };
+}
+window.R3D = { frame, resize: size, mapPoint, spotScreen, projectPoint };
+</script>
+</body>
+</html>
