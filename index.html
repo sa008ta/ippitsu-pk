@@ -768,12 +768,12 @@ async function loadRateRanking() {
   for (const r of rows) {
     if (r[2] === '__RESULT__' || r[2] === '__DEL__') continue;
     if (delSet.has((r[1] || '').trim().toUpperCase())) continue;
-    try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: r[3] || 'NONAME', rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase() }; } catch (e) {}
+    try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: r[3] || 'NONAME', rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase(), codeRaw: (r[1] || '').trim() }; } catch (e) {}
   }
   // no code battle yet -> no rate to rank (still at the 1000 start with zero battles)
   const list = Object.values(byPid).filter(e => e.rate !== 1000 || (resCount[e.code] || 0) > 0).sort((a, b) => b.rate - a.rate).slice(0, 20);
   if (!list.length) { el.textContent = 'まだ対戦した人がいません'; return; }
-  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))} <span style="color:#8a97a5;font-size:12px;font-weight:700">ID: ${esc(e.code)}</span></span><b>${e.rate}</b></div>`).join('');
+  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}　<span style="color:#8a97a5;font-size:13px;font-weight:700">${esc(e.codeRaw)}</span></span><b>${e.rate}</b></div>`).join('');
 }
 function watchShot(r) {
   showScreen(null);
