@@ -151,8 +151,8 @@
   <div class="card">
     <h2 style="margin:2px 0 8px">🏆 レートランキング</h2>
     <div style="font-size:11px;color:#5a6e4c;margin-bottom:8px">シュートを登録した人が対象（レートは登録時点）</div>
-    <div id="rateList">読み込み中…</div>
     <button class="btn main" id="rateBackBtn">もどる</button>
+    <div id="rateList" style="margin-top:8px">読み込み中…</div>
   </div>
 </div>
 
@@ -388,6 +388,8 @@ function pkPlayerId() {
   if (!id) { id = 'p' + Math.floor(Math.random() * 0xffffffff).toString(16) + Date.now().toString(16); store.set('mahou_pk_pid', id); }
   return id;
 }
+function myUserName() { return cleanName((store.get('mahou_pk_name', '') || '').trim().slice(0, 10), 'NONAME'); }
+function dispName(w) { const n = (w || '').trim(); return (n === 'P1' || n === 'P2' || !n) ? 'NONAME' : n; } // seat names are not usernames: rows uploaded before the fix carry P1/P2
 function uploadShot(rec) {
   if (!SHOTS_FORM) return;
   const pid = pkPlayerId();
@@ -445,7 +447,7 @@ function launchKick(rawPts) {
   popShotName(G.cur.shotName);
   if (!G.players[G.cur.kicker].cpu && G.mode !== '2p') {
     const rawS = downsampleRaw(rawPts);
-    const rec = { name: G.cur.shotName, code: myCode(), res: '', who: G.players[G.cur.kicker].name, vs: G.mode === 'cpu' ? 'CPU戦（' + DIFF_NAMES[G.diff] + '）' : G.mode === 'shot' ? 'コード対戦' : G.mode === 'free' ? 'マイシュート' : '2P対戦', date: fmtDate(new Date()), raw: rawS };
+    const rec = { name: G.cur.shotName, code: myCode(), res: '', who: myUserName(), vs: G.mode === 'cpu' ? 'CPU戦（' + DIFF_NAMES[G.diff] + '）' : G.mode === 'shot' ? 'コード対戦' : G.mode === 'free' ? 'マイシュート' : '2P対戦', date: fmtDate(new Date()), raw: rawS };
     myShots = [rec]; store.set('mahou_pk_shots', myShots);
     G.cur.myRec = rec;
     uploadShot(rec);
@@ -766,7 +768,7 @@ async function loadRateRanking() {
   for (const r of rows) {
     if (r[2] === '__RESULT__' || r[2] === '__DEL__') continue;
     if (delSet.has((r[1] || '').trim().toUpperCase())) continue;
-    try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: r[3] || 'NONAME', rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase(), codeRaw: (r[1] || '').trim() }; } catch (e) {}
+    try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: dispName(r[3]), rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase(), codeRaw: (r[1] || '').trim() }; } catch (e) {}
   }
   // every shot registrant is ranked, battled or not (user hit the old no-battle exclusion 2026-11-21: registered but not listed)
   const list = Object.values(byPid).sort((a, b) => b.rate - a.rate).slice(0, 20);
@@ -836,7 +838,7 @@ async function enterCode(code) {
   let shot = null, shotIdx = -1;
   theirs.forEach((r, i) => {
     if (r[2] === '__RESULT__' || r[2] === '__DEL__') return;
-    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '', rate: (parsed && parsed.r) ? +parsed.r : 1000, pid: (parsed && parsed.p) || '', ts: r[0] || '' }; shotIdx = i; } } catch (e) {}
+    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: dispName(r[3]), name: r[2] || '', rate: (parsed && parsed.r) ? +parsed.r : 1000, pid: (parsed && parsed.p) || '', ts: r[0] || '' }; shotIdx = i; } } catch (e) {}
   });
   if (!shot) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
   let blocker = '';
@@ -883,7 +885,7 @@ function stockShot(pts) {
   const shooter = G.setShooter, sName = G.players[shooter].name;
   const rawS = downsampleRaw(pts);
   G.drawnShots.push(pts.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
-  const rec = { name: '', code: myCode(), res: '', who: sName, vs: '2P対戦', date: fmtDate(new Date()), raw: rawS };
+  const rec = { name: '', code: myCode(), res: '', who: myUserName(), vs: '2P対戦', date: fmtDate(new Date()), raw: rawS };
   myShots = [rec]; store.set('mahou_pk_shots', myShots);
   G.drawnRecs.push(rec);
   const n = G.drawnShots.length;
