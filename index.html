@@ -124,7 +124,7 @@
     <div class="bigScore" id="finalScore"></div>
     <div class="logList" id="matchLog"></div>
     <button class="btn main" id="againBtn">もう一試合</button>
-    <button class="btn sub" id="saveImgBtn">📷 リザルト画像を保存</button>
+    <button class="btn sub" id="imgShareBtn">📷 画像つきで𝕏に共有</button>
     <a class="btn sub" id="resShareBtn" href="#" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:none">𝕏 で共有</a>
     <button class="btn sub" id="backBtn">タイトルへ</button>
   </div>
@@ -616,11 +616,11 @@ function endMatch() {
   const rs = $('resShareBtn');
   if (G.mode === 'cpu') {
     rs.style.display = '';
-    $('saveImgBtn').style.display = '';
+    $('imgShareBtn').style.display = '';
     const txt = w === 0 ? `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で勝った！` : `一筆PKで${DIFF_NAMES[G.diff]}に${G.scores[0]}-${G.scores[1]}で負けた…`;
     rs.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(txt + '\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム');
     shareImgData = { text: txt + '\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム', title: '一筆PK', lines: [txt.replace(/^一筆PKで/, ''), 'スコア ' + G.scores[0] + ' - ' + G.scores[1]] };
-  } else { rs.style.display = 'none'; $('saveImgBtn').style.display = 'none'; shareImgData = null; }
+  } else { rs.style.display = 'none'; $('imgShareBtn').style.display = 'none'; shareImgData = null; }
   showScreen('result');
 }
 
@@ -817,7 +817,7 @@ function finishShotChallenge() {
   $('matchLog').innerHTML = '🏆 レート ' + myPre + ' → ' + myRate + '（' + (d >= 0 ? '+' : '') + d + '）<br>' + G.log.join('<br>');
   const rs2 = $('resShareBtn');
   rs2.style.display = '';
-  $('saveImgBtn').style.display = '';
+  $('imgShareBtn').style.display = '';
   const shotShareText = `一筆PK コード対戦\n『${G.challengeName || ''}』を${res === 'save' ? '止めた！🧤' : '決められた…'}\n🏆 レート ${myPre} → ${myRate}（${d >= 0 ? '+' : ''}${d}）\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`;
   rs2.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shotShareText);
   shareImgData = { text: shotShareText, title: '一筆PK', lines: [`『${G.challengeName || ''}』を${res === 'save' ? '止めた！🧤' : '決められた…'}`, `🏆 レート ${myPre} → ${myRate}（${d >= 0 ? '+' : ''}${d}）`] };
@@ -1111,18 +1111,22 @@ requestAnimationFrame(tick);
 
 /* ---------- wiring ---------- */
 $('name1').value = store.get('mahou_pk_name', '');
-function wireSaveImg() {
-  const b = $('saveImgBtn');
+function wireImgShare() {
+  const b = $('imgShareBtn');
   if (!b) return;
   b.addEventListener('click', () => {
     if (!shareImgData) return;
+    const openIntent = () => { const s = $('resShareBtn'); if (!s) return; const t = document.createElement('a'); t.href = s.href; t.target = '_blank'; t.rel = 'noopener'; document.body.appendChild(t); t.click(); t.remove(); };
     buildShareImage(blob => {
-      if (!blob) return;
-      try { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'result.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); } catch (e) {}
+      if (blob && navigator.share) {
+        const data = { files: [new File([blob], 'result.png', { type: 'image/png' })], text: shareImgData.text };
+        if (!navigator.canShare || navigator.canShare(data)) { navigator.share(data).catch(() => {}); return; }
+      }
+      openIntent();
     });
   });
 }
-wireSaveImg();
+wireImgShare();
 $('name1').addEventListener('input', () => store.set('mahou_pk_name', $('name1').value.trim().slice(0, 10)));
 $('rateRankBtn').onclick = () => { showScreen('rate'); loadRateRanking(); };
 $('rateBackBtn').onclick = () => { renderMyShots(); showScreen('myshot'); };
