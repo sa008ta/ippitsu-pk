@@ -773,7 +773,7 @@ async function loadRateRanking() {
   // no code battle yet -> no rate to rank (still at the 1000 start with zero battles)
   const list = Object.values(byPid).filter(e => e.rate !== 1000 || (resCount[e.code] || 0) > 0).sort((a, b) => b.rate - a.rate).slice(0, 20);
   if (!list.length) { el.textContent = 'まだ対戦した人がいません'; return; }
-  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}</span><b>${e.rate}</b></div>`).join('');
+  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))} <span style="color:#8a97a5;font-size:12px;font-weight:700">ID: ${esc(e.code)}</span></span><b>${e.rate}</b></div>`).join('');
 }
 function watchShot(r) {
   showScreen(null);
