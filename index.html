@@ -76,7 +76,6 @@
   <div class="card">
     <div class="hero"><h1>一筆<span class="gold">PK</span></h1><div class="sub">線を描くと、その通りにボールが飛ぶ</div></div>
     <div class="lbl">👤 ユーザーネーム</div>
-    <div class="nameRow"><input id="name1" maxlength="10" placeholder="ユーザーネーム"></div>
     <div class="lbl">🤖 CPU戦</div>
     <button class="btn main" id="cpuBtn">CPUと対戦</button>
     <div class="lbl">👥 2P戦（同じ端末）</div>
@@ -133,14 +132,26 @@
 <div id="screenMyshot" class="screen hidden">
   <div class="card">
     <h2 style="margin:2px 0 4px">⚽ マイシュート</h2>
+    <div class="nameRow"><span style="font-size:13px;font-weight:800;color:#5a6e4c;white-space:nowrap">👤 ユーザーネーム</span><input id="name1" maxlength="10" placeholder="ユーザーネーム"></div>
     <div id="myShotHead" style="cursor:pointer">
       <div id="myShotName" style="font-size:19px;font-weight:900;color:#23301c;min-height:26px">—</div>
       <div id="myCode" style="font-size:32px;font-weight:900;letter-spacing:3px;color:#23301c">—</div>
     </div>
     <button class="btn main" id="freeBtn">⚽ シュートを蹴る</button>
     <a class="btn sub" id="myShareBtn" href="#" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:none">𝕏 で共有</a>
+    <div id="myRate" style="font-size:21px;font-weight:900;color:#8a6d00;background:#fdf3d0;border-radius:12px;padding:8px 12px;margin-top:10px">🏆 レート 1000</div>
+    <button class="btn sub" id="rateRankBtn">🏆 レートランキング</button>
     <div id="myStats" style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0"></div>
     <button class="btn main" id="myBackBtn">タイトルへ</button>
+  </div>
+</div>
+
+<div id="screenRate" class="screen hidden">
+  <div class="card">
+    <h2 style="margin:2px 0 8px">🏆 レートランキング</h2>
+    <div style="font-size:11px;color:#5a6e4c;margin-bottom:8px">シュートを登録した人が対象（レートは登録時点）</div>
+    <div id="rateList">読み込み中…</div>
+    <button class="btn main" id="rateBackBtn">もどる</button>
   </div>
 </div>
 
@@ -317,7 +328,7 @@ function ballPosAt(fl, u) {
 function wallBlock(fl) { return null; } // PK: no wall
 
 /* ---------- UI helpers ---------- */
-const screens = { title: $('screenTitle'), pass: $('screenPass'), result: $('screenResult'), myshot: $('screenMyshot'), diff: $('screenDiff') };
+const screens = { title: $('screenTitle'), pass: $('screenPass'), result: $('screenResult'), myshot: $('screenMyshot'), diff: $('screenDiff'), rate: $('screenRate') };
 function showScreen(name) {
   for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
   if (!name) for (const k in screens) screens[k].classList.add('hidden');
@@ -381,7 +392,7 @@ function uploadShot(rec) {
   const pid = pkPlayerId();
   const live = store.get('mahou_pk_live', '');
   if (live && live !== rec.code) formPost(SHOTS_FORM, SHOTS_ENT, { code: live, name: '__DEL__', who: rec.who, raw: pid, date: fmtDate(new Date()) });
-  formPost(SHOTS_FORM, SHOTS_ENT, { code: rec.code, name: rec.name, who: rec.who, raw: JSON.stringify({ p: pid, pts: rec.raw }), date: rec.date });
+  formPost(SHOTS_FORM, SHOTS_ENT, { code: rec.code, name: rec.name, who: rec.who, raw: JSON.stringify({ p: pid, pts: rec.raw, r: myRate }), date: rec.date });
   store.set('mahou_pk_live', rec.code);
 }
 function startMatch(mode) {
@@ -624,6 +635,11 @@ if (myShots.length > 1) { myShots = myShots.slice(0, 1); store.set('mahou_pk_sho
 let usedCodes = store.get('mahou_pk_used', []);
 let stats = Object.assign({ stops: 0, conceded: 0, challenged: 0, received: 0, shotGoals: 0, shotStopped: 0 }, store.get('mahou_pk_stats2', {}));
 function saveStats() { store.set('mahou_pk_stats2', stats); }
+/* レート (コード対戦のみ): start 1000, Elo-style — the swing depends on the opponent's rate */
+let myRate = +(store.get('mahou_pk_rate', 1000) || 1000);
+let rateSeen = store.get('mahou_pk_rate_seen', []);
+function eloDelta(me, opp, win) { const e = 1 / (1 + Math.pow(10, (opp - me) / 400)); return Math.round(32 * ((win ? 1 : 0) - e)); }
+function applyRate(opp, win) { const d = eloDelta(myRate, opp, win); myRate = Math.max(100, myRate + d); store.set('mahou_pk_rate', myRate); return d; }
 function genCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; }
 function downsampleRaw(raw) {
   const pts = (raw || []).filter(Boolean);
@@ -654,13 +670,18 @@ function renderStats() {
 }
 function renderMyShots() {
   renderStats();
+  const rt = $('myRate'); if (rt) rt.textContent = (stats.challenged + stats.received) > 0 ? '🏆 レート ' + myRate : '🏆 レート ―';
   const r = myShots[0];
   $('myShotName').textContent = r ? '『' + (r.name || 'シュート') + '』' : 'まだシュートがありません';
   $('myCode').textContent = r && r.code ? r.code : '—';
   const share = $('myShareBtn');
   if (share) {
     share.style.display = r ? '' : 'none';
-    if (r) share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}\nこのシュート、止められる？\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
+    if (r) {
+      const hasRecord = (stats.challenged + stats.received) > 0;
+      const recLines = hasRecord ? `\n🏆 レート ${myRate}\n🧤 挑んだ ${stats.challenged}戦 ${stats.stops}勝${stats.conceded}敗\n⚽ 挑まれた ${stats.received}戦 ${stats.shotGoals}勝${stats.shotStopped}敗` : '';
+      share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}${recLines}\nこのシュート、止められる？\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
+    }
   }
 }
 async function refreshShotRecords() {
@@ -669,13 +690,26 @@ async function refreshShotRecords() {
   if (!rows) return;
   const delSet = new Set(rows.filter(r => r[2] === '__DEL__').map(r => (r[1] || '').trim().toUpperCase()));
   const byCode = {};
+  const myCodes = new Set(myShots.map(rec => (rec.code || '').toUpperCase()));
   for (const r of rows) {
     if (r[2] !== '__RESULT__' || delSet.has((r[1] || '').trim().toUpperCase())) continue;
     const c = (r[1] || '').trim().toUpperCase();
+    const parts = (r[4] || '').split(':');
+    const res = parts[0];
     byCode[c] = byCode[c] || { faced: 0, won: 0, lost: 0 };
     byCode[c].faced++;
-    if (r[4] === 'goal') byCode[c].won++; else byCode[c].lost++;
+    if (res === 'goal') byCode[c].won++; else byCode[c].lost++;
+    // レート: my shot was challenged while I was away — apply each new result once
+    if (myCodes.has(c)) {
+      const key = c + '|' + (r[0] || '') + '|' + (r[3] || '') + '|' + (r[4] || '');
+      if (!rateSeen.includes(key)) {
+        rateSeen.push(key);
+        applyRate(parseInt(parts[1], 10) || 1000, res === 'goal');
+      }
+    }
   }
+  if (rateSeen.length > 200) rateSeen = rateSeen.slice(-200);
+  store.set('mahou_pk_rate_seen', rateSeen);
   const tot = { faced: 0, won: 0, lost: 0 };
   let changed = false;
   for (const rec of myShots) {
@@ -687,6 +721,26 @@ async function refreshShotRecords() {
   if (changed) store.set('mahou_pk_shots', myShots);
   if (stats.received !== tot.faced || stats.shotGoals !== tot.won || stats.shotStopped !== tot.lost) { stats.received = tot.faced; stats.shotGoals = tot.won; stats.shotStopped = tot.lost; saveStats(); }
   renderMyShots();
+}
+async function loadRateRanking() {
+  const el = $('rateList'); if (!el) return;
+  el.textContent = '読み込み中…';
+  const rows = await sheetLoad(SHOTS_SHEET);
+  if (!rows) { el.textContent = '通信に失敗しました'; return; }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const delSet = new Set(rows.filter(r => r[2] === '__DEL__').map(r => (r[1] || '').trim().toUpperCase()));
+  const resCount = {};
+  for (const r of rows) if (r[2] === '__RESULT__') { const c = (r[1] || '').trim().toUpperCase(); resCount[c] = (resCount[c] || 0) + 1; }
+  const byPid = {};
+  for (const r of rows) {
+    if (r[2] === '__RESULT__' || r[2] === '__DEL__') continue;
+    if (delSet.has((r[1] || '').trim().toUpperCase())) continue;
+    try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: r[3] || 'NONAME', rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase() }; } catch (e) {}
+  }
+  // no code battle yet -> no rate to rank (still at the 1000 start with zero battles)
+  const list = Object.values(byPid).filter(e => e.rate !== 1000 || (resCount[e.code] || 0) > 0).sort((a, b) => b.rate - a.rate).slice(0, 20);
+  if (!list.length) { el.textContent = 'まだ対戦した人がいません'; return; }
+  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}</span><b>${e.rate}</b></div>`).join('');
 }
 function watchShot(r) {
   showScreen(null);
@@ -700,9 +754,10 @@ function codeShotKick() {
   const raw = G.codeShots[G.codeIdx % G.codeShots.length]; G.codeIdx++;
   launchKick(raw.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
 }
-function startShotChallenge(code, owner, raw, shotName) {
+function startShotChallenge(code, owner, raw, shotName, oppRate) {
   owner = cleanName((owner || '').trim().slice(0, 10), '相手');
   G.mode = 'shot'; G.shotCode = code; G.challengeName = shotName || '';
+  G.oppRate = oppRate || 1000;
   const n1 = cleanName(($('name1').value || '').trim().slice(0, 10), 'P1') || 'P1';
   G.players = [{ name: n1, cpu: false }, { name: owner || '相手', cpu: true }];
   G.scores = [0, 0]; G.log = []; G.half = 1; G.kickInHalf = 0; G.sd = false; G.sdKicks = [0, 0]; G.sdGoals = [0, 0]; G.lastKicker = -1;
@@ -718,14 +773,18 @@ function finishShotChallenge() {
   const code = G.shotCode;
   G.phase = 'matchEnd';
   stats.challenged++; saveStats();
+  const myPre = myRate;
+  const d = applyRate(G.oppRate || 1000, res === 'save');
   if (code) {
     usedCodes.push(code); store.set('mahou_pk_used', usedCodes);
-    if (SHOTS_FORM) formPost(SHOTS_FORM, SHOTS_ENT, { code, name: '__RESULT__', who: G.players[0].name, raw: res === 'save' ? 'save' : 'goal', date: fmtDate(new Date()) });
+    if (SHOTS_FORM) formPost(SHOTS_FORM, SHOTS_ENT, { code, name: '__RESULT__', who: G.players[0].name, raw: (res === 'save' ? 'save' : 'goal') + ':' + myPre, date: fmtDate(new Date()) });
   }
   $('winTitle').textContent = res === 'save' ? '止めた！🧤' : '決められた…';
   $('finalScore').textContent = '『' + (G.challengeName || (G.cur && G.cur.shotName) || '') + '』';
-  $('matchLog').innerHTML = G.log.join('<br>');
-  $('resShareBtn').style.display = 'none';
+  $('matchLog').innerHTML = '🏆 レート ' + myPre + ' → ' + myRate + '（' + (d >= 0 ? '+' : '') + d + '）<br>' + G.log.join('<br>');
+  const rs2 = $('resShareBtn');
+  rs2.style.display = '';
+  rs2.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PK コード対戦\n『${G.challengeName || ''}』を${res === 'save' ? '止めた！🧤' : '決められた…'}\n🏆 レート ${myPre} → ${myRate}（${d >= 0 ? '+' : ''}${d}）\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
   $('hud').classList.add('hidden'); $('quitBtn').classList.add('hidden'); setHint('');
   showScreen('result');
 }
@@ -742,11 +801,12 @@ async function enterCode(code) {
   let shot = null;
   for (const r of theirs) {
     if (r[2] === '__RESULT__') continue;
-    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '' }; break; } } catch (e) {}
+    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '', rate: (parsed && parsed.r) ? +parsed.r : 1000, pid: (parsed && parsed.p) || '' }; break; } } catch (e) {}
   }
   if (!shot) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
+  if (shot.pid && shot.pid === pkPlayerId()) { msg.textContent = '自分のシュートには挑戦できません'; return; }
   msg.textContent = '';
-  startShotChallenge(code, shot.owner, shot.raw, shot.name);
+  startShotChallenge(code, shot.owner, shot.raw, shot.name, shot.rate);
 }
 function startFree() {
   G.mode = 'free';
@@ -1016,6 +1076,8 @@ requestAnimationFrame(tick);
 /* ---------- wiring ---------- */
 $('name1').value = store.get('mahou_pk_name', '');
 $('name1').addEventListener('input', () => store.set('mahou_pk_name', $('name1').value.trim().slice(0, 10)));
+$('rateRankBtn').onclick = () => { showScreen('rate'); loadRateRanking(); };
+$('rateBackBtn').onclick = () => { renderMyShots(); showScreen('myshot'); };
 $('cpuBtn').addEventListener('click', () => showScreen('diff'));
 document.querySelectorAll('#diffPick button[data-d]').forEach(b => b.addEventListener('click', () => { G.diff = +b.dataset.d; startMatch('cpu'); }));
 $('diffBack').addEventListener('click', () => showScreen('title'));
