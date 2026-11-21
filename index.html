@@ -378,7 +378,8 @@ function hasNG(s) {
 }
 function cleanName(s, fallback) {
   s = (s || '').trim();
-  if (!s || !hasNG(s)) return s;
+  if (!s) return fallback;
+  if (!hasNG(s)) return s;
   let out = s;
   for (const w of NG_WORDS) out = out.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '＊'.repeat(Math.max(2, w.length)));
   return hasNG(out) ? fallback : out;
@@ -656,8 +657,15 @@ function buildShareImage(cb) {
 
 /* ---------- my shots / versus codes ---------- */
 const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  get(k, d) {
+    try { const v = localStorage.getItem(k); if (v !== null) return JSON.parse(v); } catch (e) {}
+    try { const m = document.cookie.match(new RegExp('(?:^|; )' + k + '=([^;]*)')); if (m) return JSON.parse(decodeURIComponent(m[1])); } catch (e) {}
+    return d;
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    try { document.cookie = k + '=' + encodeURIComponent(JSON.stringify(v)) + '; max-age=31536000; path=/; SameSite=Lax'; } catch (e) {}
+  }
 };
 const DIFF_NAMES = ['小学生', '高校生', '選手権優勝GK', '象', '大仏', 'ベリーベリーつよしくん'];
 const SHOTS_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSeMTAv_mUQWjZx1PDDQnBRHPZbwyONv_6p6E_lPI6_rAPoSNg/formResponse';
@@ -1135,6 +1143,10 @@ function wireImgShare() {
 }
 wireImgShare();
 $('name1').addEventListener('input', () => store.set('mahou_pk_name', $('name1').value.trim().slice(0, 10)));
+$('name1').addEventListener('change', () => {
+  // the ranking reads the name from the shot row, so a name change re-registers the current shot (same code; the latest row wins)
+  if (myShots[0] && myShots[0].raw) uploadShot({ ...myShots[0], code: myCode(), who: myUserName(), date: fmtDate(new Date()) });
+});
 $('rateRankBtn').onclick = () => { showScreen('rate'); loadRateRanking(); };
 $('rateBackBtn').onclick = () => { renderMyShots(); showScreen('myshot'); };
 $('cpuBtn').addEventListener('click', () => showScreen('diff'));
