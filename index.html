@@ -391,8 +391,6 @@ function pkPlayerId() {
 function uploadShot(rec) {
   if (!SHOTS_FORM) return;
   const pid = pkPlayerId();
-  const live = store.get('mahou_pk_live', '');
-  if (live && live !== rec.code) formPost(SHOTS_FORM, SHOTS_ENT, { code: live, name: '__DEL__', who: rec.who, raw: pid, date: fmtDate(new Date()) });
   formPost(SHOTS_FORM, SHOTS_ENT, { code: rec.code, name: rec.name, who: rec.who, raw: JSON.stringify({ p: pid, pts: rec.raw, r: myRate }), date: rec.date });
   store.set('mahou_pk_live', rec.code);
 }
@@ -447,7 +445,7 @@ function launchKick(rawPts) {
   popShotName(G.cur.shotName);
   if (!G.players[G.cur.kicker].cpu && G.mode !== '2p') {
     const rawS = downsampleRaw(rawPts);
-    const rec = { name: G.cur.shotName, code: genCode(), res: '', who: G.players[G.cur.kicker].name, vs: G.mode === 'cpu' ? 'CPU戦（' + DIFF_NAMES[G.diff] + '）' : G.mode === 'shot' ? 'コード対戦' : G.mode === 'free' ? 'マイシュート' : '2P対戦', date: fmtDate(new Date()), raw: rawS };
+    const rec = { name: G.cur.shotName, code: myCode(), res: '', who: G.players[G.cur.kicker].name, vs: G.mode === 'cpu' ? 'CPU戦（' + DIFF_NAMES[G.diff] + '）' : G.mode === 'shot' ? 'コード対戦' : G.mode === 'free' ? 'マイシュート' : '2P対戦', date: fmtDate(new Date()), raw: rawS };
     myShots = [rec]; store.set('mahou_pk_shots', myShots);
     G.cur.myRec = rec;
     uploadShot(rec);
@@ -665,7 +663,7 @@ const SHOTS_ENT = { code: '1186379246', name: '2011907588', who: '1380358987', r
 const SHOTS_SHEET = '1bEgqP0exgNgyR4zJsWfGU-FzzAEeo6-rb7kNPrz7a_U';
 let myShots = store.get('mahou_pk_shots', []);
 if (myShots.length > 1) { myShots = myShots.slice(0, 1); store.set('mahou_pk_shots', myShots); }
-let usedCodes = store.get('mahou_pk_used', []);
+let usedMap = store.get('mahou_pk_used2', {});
 let stats = Object.assign({ stops: 0, conceded: 0, challenged: 0, received: 0, shotGoals: 0, shotStopped: 0 }, store.get('mahou_pk_stats2', {}));
 function saveStats() { store.set('mahou_pk_stats2', stats); }
 /* レート (コード対戦のみ): start 1000, Elo-style — the swing depends on the opponent's rate */
@@ -674,6 +672,8 @@ let rateSeen = store.get('mahou_pk_rate_seen', []);
 function eloDelta(me, opp, win) { const e = 1 / (1 + Math.pow(10, (opp - me) / 400)); return Math.round(32 * ((win ? 1 : 0) - e)); }
 function applyRate(opp, win) { const d = eloDelta(myRate, opp, win); myRate = Math.max(100, myRate + d); store.set('mahou_pk_rate', myRate); return d; }
 function genCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; }
+// the player's code is permanent: changing the shot never changes the ID
+function myCode() { let c = store.get('mahou_pk_mycode', ''); if (!c) { c = store.get('mahou_pk_live', '') || genCode(); store.set('mahou_pk_mycode', c); } return c; }
 function downsampleRaw(raw) {
   const pts = (raw || []).filter(Boolean);
   if (!pts.length) return [];
@@ -787,9 +787,10 @@ function codeShotKick() {
   const raw = G.codeShots[G.codeIdx % G.codeShots.length]; G.codeIdx++;
   launchKick(raw.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
 }
-function startShotChallenge(code, owner, raw, shotName, oppRate) {
+function startShotChallenge(code, owner, raw, shotName, oppRate, shotTs) {
   owner = cleanName((owner || '').trim().slice(0, 10), '相手');
   G.mode = 'shot'; G.shotCode = code; G.challengeName = shotName || '';
+  G.challengeShotTs = shotTs || '';
   G.oppRate = oppRate || 1000;
   const n1 = cleanName(($('name1').value || '').trim().slice(0, 10), 'P1') || 'P1';
   G.players = [{ name: n1, cpu: false }, { name: owner || '相手', cpu: true }];
@@ -809,7 +810,7 @@ function finishShotChallenge() {
   const myPre = myRate;
   const d = applyRate(G.oppRate || 1000, res === 'save');
   if (code) {
-    usedCodes.push(code); store.set('mahou_pk_used', usedCodes);
+    if (G.challengeShotTs) { usedMap[code] = G.challengeShotTs; store.set('mahou_pk_used2', usedMap); }
     if (SHOTS_FORM) formPost(SHOTS_FORM, SHOTS_ENT, { code, name: '__RESULT__', who: G.players[0].name, raw: (res === 'save' ? 'save' : 'goal') + ':' + myPre, date: fmtDate(new Date()) });
   }
   $('winTitle').textContent = res === 'save' ? '止めた！🧤' : '決められた…';
@@ -826,23 +827,27 @@ function finishShotChallenge() {
 }
 async function enterCode(code) {
   const msg = $('codeMsg');
-  if (usedCodes.includes(code)) { msg.textContent = 'そのコードは使用済みです'; return; }
   if (!SHOTS_SHEET) { msg.textContent = 'オンライン対戦は準備中です'; return; }
   msg.textContent = '読み込み中…';
   const rows = await sheetLoad(SHOTS_SHEET);
   if (!rows) { msg.textContent = '通信に失敗しました'; return; }
   const theirs = rows.filter(r => (r[1] || '').trim().toUpperCase() === code);
-  if (theirs.some(r => r[2] === '__DEL__')) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
-  if (theirs.some(r => r[2] === '__RESULT__')) { msg.textContent = 'そのコードは使用済みです'; return; }
-  let shot = null;
-  for (const r of theirs) {
-    if (r[2] === '__RESULT__') continue;
-    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '', rate: (parsed && parsed.r) ? +parsed.r : 1000, pid: (parsed && parsed.p) || '' }; break; } } catch (e) {}
-  }
+  // the code (ID) is permanent; the LATEST shot row under it is the current shot.
+  // A result consumes only the shot version it was posted against: when the owner
+  // uploads a newer shot afterwards, the same code is live again with the new shot.
+  let shot = null, shotIdx = -1;
+  theirs.forEach((r, i) => {
+    if (r[2] === '__RESULT__' || r[2] === '__DEL__') return;
+    try { const parsed = JSON.parse(r[4]); const raw = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.pts) ? parsed.pts : null); if (raw && raw.length >= 6) { shot = { raw, owner: r[3] || '相手', name: r[2] || '', rate: (parsed && parsed.r) ? +parsed.r : 1000, pid: (parsed && parsed.p) || '', ts: r[0] || '' }; shotIdx = i; } } catch (e) {}
+  });
   if (!shot) { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
+  let blocker = '';
+  theirs.forEach((r, i) => { if (i > shotIdx) { if (r[2] === '__DEL__') blocker = 'gone'; else if (r[2] === '__RESULT__') blocker = 'used'; } });
+  if (blocker === 'gone') { msg.textContent = 'そのコードのシュートが見つかりません'; return; }
+  if (blocker === 'used' || usedMap[code] === shot.ts) { msg.textContent = 'そのコードは使用済みです'; return; }
   if (shot.pid && shot.pid === pkPlayerId()) { msg.textContent = '自分のシュートには挑戦できません'; return; }
   msg.textContent = '';
-  startShotChallenge(code, shot.owner, shot.raw, shot.name, shot.rate);
+  startShotChallenge(code, shot.owner, shot.raw, shot.name, shot.rate, shot.ts);
 }
 function startFree() {
   G.mode = 'free';
@@ -880,7 +885,7 @@ function stockShot(pts) {
   const shooter = G.setShooter, sName = G.players[shooter].name;
   const rawS = downsampleRaw(pts);
   G.drawnShots.push(pts.map(p => ({ nx: p.nx, ny: p.ny, t: p.t })));
-  const rec = { name: '', code: genCode(), res: '', who: sName, vs: '2P対戦', date: fmtDate(new Date()), raw: rawS };
+  const rec = { name: '', code: myCode(), res: '', who: sName, vs: '2P対戦', date: fmtDate(new Date()), raw: rawS };
   myShots = [rec]; store.set('mahou_pk_shots', myShots);
   G.drawnRecs.push(rec);
   const n = G.drawnShots.length;
