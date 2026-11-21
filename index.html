@@ -713,7 +713,7 @@ function renderMyShots() {
     if (r) {
       const hasRecord = (stats.challenged + stats.received) > 0;
       const recLines = hasRecord ? `\n🏆 レート ${myRate}\n🧤 挑んだ ${stats.challenged}戦 ${stats.stops}勝${stats.conceded}敗\n⚽ 挑まれた ${stats.received}戦 ${stats.shotGoals}勝${stats.shotStopped}敗` : '';
-      share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！『${r.name || 'シュート'}』\nコード：${r.code}${recLines}\nこのシュート、止められる？\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
+      share.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(`一筆PKでシュートを作った！\nコード：${r.code}${recLines}\nこのシュート、止められる？\nhttps://sa008ta.github.io/ippitsu-pk/ #一筆PK #ブラウザゲーム #インディーゲーム`);
     }
   }
 }
