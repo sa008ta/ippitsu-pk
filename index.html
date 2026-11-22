@@ -787,10 +787,13 @@ async function loadRateRanking() {
     try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: dispName(r[3]), rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase(), codeRaw: (r[1] || '').trim() }; } catch (e) {}
   }
   // every shot registrant is ranked, battled or not (user hit the old no-battle exclusion 2026-11-21: registered but not listed)
-  const all = Object.entries(byPid).map(([pid, e]) => ({ ...e, pid })).sort((a, b) => b.rate - a.rate);
-  if (!all.length) { el.textContent = 'まだ登録した人がいません'; return; }
+  const all = Object.entries(byPid).map(([pid, e]) => ({ ...e, pid }));
   const myPid = pkPlayerId();
-  const rowHtml = (e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${e.pid === myPid ? '#ffe9a8' : (i % 2 ? '#ffffff' : '#f4f8ee')};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}　<span style="color:#8a97a5;font-size:13px;font-weight:700">${esc(e.codeRaw)}</span></span><b>${e.pid === myPid ? myRate : e.rate}</b></div>`;
+  const mine = all.find(e => e.pid === myPid);
+  if (mine) mine.rate = myRate; // my own rate is known locally and is newer than the sheet's registration-time value — rank AND display by it (sorting by the stale sheet value put a 1016 player below 1000 players)
+  all.sort((a, b) => b.rate - a.rate);
+  if (!all.length) { el.textContent = 'まだ登録した人がいません'; return; }
+  const rowHtml = (e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${e.pid === myPid ? '#ffe9a8' : (i % 2 ? '#ffffff' : '#f4f8ee')};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}　<span style="color:#8a97a5;font-size:13px;font-weight:700">${esc(e.codeRaw)}</span></span><b>${e.rate}</b></div>`;
   let html = all.slice(0, 20).map(rowHtml).join('');
   const myIdx = all.findIndex(e => e.pid === myPid);
   if (myIdx >= 20) html += rowHtml(all[myIdx], myIdx); // outside the top 20 you still get your own row, pinned at the bottom
