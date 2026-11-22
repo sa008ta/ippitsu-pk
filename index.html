@@ -396,6 +396,13 @@ function uploadShot(rec) {
   const pid = pkPlayerId();
   formPost(SHOTS_FORM, SHOTS_ENT, { code: rec.code, name: rec.name, who: rec.who, raw: JSON.stringify({ p: pid, pts: rec.raw, r: myRate }), date: rec.date });
   store.set('mahou_pk_live', rec.code);
+  store.set('mahou_pk_rate_synced', myRate);
+}
+function syncRateRow() {
+  // battle results move myRate locally, but the ranking reads the rate embedded in my shot row — re-register the same shot (same code, same pts) whenever that embedded rate has gone stale
+  if (!myShots[0] || !myShots[0].raw) return;
+  if (+(store.get('mahou_pk_rate_synced', -1)) === myRate) return;
+  uploadShot({ ...myShots[0], code: myCode(), who: myUserName(), date: fmtDate(new Date()) });
 }
 function startMatch(mode) {
   G.mode = mode;
@@ -763,6 +770,7 @@ async function refreshShotRecords() {
   }
   if (changed) store.set('mahou_pk_shots', myShots);
   if (stats.received !== tot.faced || stats.shotGoals !== tot.won || stats.shotStopped !== tot.lost) { stats.received = tot.faced; stats.shotGoals = tot.won; stats.shotStopped = tot.lost; saveStats(); }
+  syncRateRow();
   renderMyShots();
 }
 async function loadRateRanking() {
@@ -779,9 +787,14 @@ async function loadRateRanking() {
     try { const p = JSON.parse(r[4]); if (!p || !p.p) continue; byPid[p.p] = { name: dispName(r[3]), rate: p.r ? +p.r : 1000, code: (r[1] || '').trim().toUpperCase(), codeRaw: (r[1] || '').trim() }; } catch (e) {}
   }
   // every shot registrant is ranked, battled or not (user hit the old no-battle exclusion 2026-11-21: registered but not listed)
-  const list = Object.values(byPid).sort((a, b) => b.rate - a.rate).slice(0, 20);
-  if (!list.length) { el.textContent = 'まだ登録した人がいません'; return; }
-  el.innerHTML = list.map((e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${i % 2 ? '#ffffff' : '#f4f8ee'};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}　<span style="color:#8a97a5;font-size:13px;font-weight:700">${esc(e.codeRaw)}</span></span><b>${e.rate}</b></div>`).join('');
+  const all = Object.entries(byPid).map(([pid, e]) => ({ ...e, pid })).sort((a, b) => b.rate - a.rate);
+  if (!all.length) { el.textContent = 'まだ登録した人がいません'; return; }
+  const myPid = pkPlayerId();
+  const rowHtml = (e, i) => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:${e.pid === myPid ? '#ffe9a8' : (i % 2 ? '#ffffff' : '#f4f8ee')};border-radius:8px;margin-bottom:4px"><span>${i + 1}位　${esc(cleanName(e.name, 'NONAME'))}　<span style="color:#8a97a5;font-size:13px;font-weight:700">${esc(e.codeRaw)}</span></span><b>${e.pid === myPid ? myRate : e.rate}</b></div>`;
+  let html = all.slice(0, 20).map(rowHtml).join('');
+  const myIdx = all.findIndex(e => e.pid === myPid);
+  if (myIdx >= 20) html += rowHtml(all[myIdx], myIdx); // outside the top 20 you still get your own row, pinned at the bottom
+  el.innerHTML = html;
 }
 function watchShot(r) {
   showScreen(null);
@@ -821,6 +834,7 @@ function finishShotChallenge() {
     if (G.challengeShotTs) { usedMap[code] = G.challengeShotTs; store.set('mahou_pk_used2', usedMap); }
     if (SHOTS_FORM) formPost(SHOTS_FORM, SHOTS_ENT, { code, name: '__RESULT__', who: G.players[0].name, raw: (res === 'save' ? 'save' : 'goal') + ':' + myPre, date: fmtDate(new Date()) });
   }
+  syncRateRow();
   $('winTitle').textContent = res === 'save' ? '止めた！🧤' : '決められた…';
   $('finalScore').textContent = '『' + (G.challengeName || (G.cur && G.cur.shotName) || '') + '』';
   $('matchLog').innerHTML = '🏆 レート ' + myPre + ' → ' + myRate + '（' + (d >= 0 ? '+' : '') + d + '）<br>' + G.log.join('<br>');
