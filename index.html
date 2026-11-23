@@ -705,7 +705,7 @@ function fmtDate(d) { return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + Stri
 function formPost(url, ent, vals) {
   const b = new URLSearchParams();
   for (const k in ent) b.append('entry.' + ent[k], vals[k] == null ? '' : '' + vals[k]);
-  fetch(url, { method: 'POST', mode: 'no-cors', body: b }).catch(() => {});
+  fetch(url, { method: 'POST', mode: 'no-cors', body: b, keepalive: true }).catch(() => {});
 }
 function sheetLoad(id) {
   return fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:json&headers=1&_=' + Date.now())
